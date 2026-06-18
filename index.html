@@ -1,0 +1,3495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpendOrbit — Futuristic Space Finance Dashboard</title>
+  <!-- Google Fonts: Orbitron for titles, Exo 2 for UI body, Share Tech Mono for monetary numbers -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,300;0,400;0,600;0,800;1,400&family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons for high-tech ui icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Supabase CDN Client Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    /* ==========================================
+       1. FUTURE SPACE DESIGN SYSTEM
+       ========================================== */
+    :root {
+      --bg-space-dark: #050512;
+      --bg-space-light: #0d0d29;
+      --primary-violet: #7c3aed;
+      --primary-violet-rgb: 124, 58, 237;
+      --secondary-cyan: #00f5ff;
+      --secondary-cyan-rgb: 0, 245, 255;
+      --accent-pink: #ff006e;
+      --accent-pink-rgb: 255, 0, 110;
+      --accent-emerald: #00ffaa;
+      --accent-emerald-rgb: 0, 255, 170;
+      
+      --text-main: #f0f0ff;
+      --text-muted: #8a8ab0;
+      --text-glow-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+      
+      --glass-bg: rgba(15, 15, 42, 0.65);
+      --glass-border: rgba(124, 58, 237, 0.25);
+      --glass-border-hover: rgba(0, 245, 255, 0.5);
+      --glass-shadow: 0 15px 35px rgba(0, 0, 0, 0.7);
+      
+      --transition-speed: 0.3s;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--primary-violet) var(--bg-space-dark);
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-space-dark);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--primary-violet);
+      border-radius: 4px;
+      box-shadow: inset 0 0 5px var(--secondary-cyan);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--secondary-cyan);
+    }
+
+    body {
+      background-color: var(--bg-space-dark);
+      color: var(--text-main);
+      font-family: 'Exo 2', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      perspective: 1200px;
+    }
+
+    /* Starfield Background Canvas */
+    #starfield-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -2;
+      pointer-events: none;
+    }
+
+    /* Nebula ambient gradients */
+    .nebula {
+      position: fixed;
+      width: 50vw;
+      height: 50vh;
+      border-radius: 50%;
+      filter: blur(140px);
+      z-index: -1;
+      opacity: 0.22;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+    .nebula-violet {
+      top: -10%;
+      right: 10%;
+      background: radial-gradient(circle, var(--primary-violet), transparent 70%);
+      animation: floatNebula 25s infinite alternate ease-in-out;
+    }
+    .nebula-cyan {
+      bottom: -10%;
+      left: 10%;
+      background: radial-gradient(circle, var(--secondary-cyan), transparent 70%);
+      animation: floatNebula 30s infinite alternate-reverse ease-in-out;
+    }
+
+    @keyframes floatNebula {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(8%, 10%) scale(1.2); }
+    }
+
+    /* Monospace Utility for Numbers */
+    .mono {
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    /* Glitch/Futuristic Typography */
+    .orbitron-title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #fff;
+      text-shadow: 0 0 8px rgba(124, 58, 237, 0.8), 0 0 20px rgba(0, 245, 255, 0.4);
+    }
+
+    /* Glass Panel Styles */
+    .glass-panel {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      box-shadow: var(--glass-shadow);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+    .glass-panel:hover {
+      border-color: var(--glass-border-hover);
+      box-shadow: 0 20px 45px rgba(0, 245, 255, 0.15), var(--glass-shadow);
+    }
+
+    /* ==========================================
+       2. LAYOUT & NAVIGATION
+       ========================================== */
+    .app-container {
+      display: grid;
+      min-height: 100vh;
+      grid-template-columns: 240px 1fr;
+      grid-template-rows: auto 1fr;
+      grid-template-areas: 
+        "sidebar header"
+        "sidebar main";
+      transition: grid-template-columns 0.3s ease;
+    }
+
+    /* Header Styling */
+    header.main-header {
+      grid-area: header;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid rgba(124, 58, 237, 0.15);
+      z-index: 10;
+    }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .avatar-wrapper {
+      position: relative;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary-violet), var(--secondary-cyan));
+      padding: 2px;
+      box-shadow: 0 0 10px rgba(0, 245, 255, 0.3);
+    }
+
+    .avatar-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: var(--bg-space-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--secondary-cyan);
+    }
+
+    .status-dot {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: var(--accent-emerald);
+      border: 2px solid var(--bg-space-dark);
+      box-shadow: 0 0 8px var(--accent-emerald);
+    }
+
+    /* Sidebar Navigation (Desktop) */
+    .sidebar {
+      grid-area: sidebar;
+      background: rgba(8, 8, 25, 0.85);
+      border-right: 1px solid rgba(124, 58, 237, 0.2);
+      display: flex;
+      flex-direction: column;
+      padding: 2rem 1.25rem;
+      justify-content: space-between;
+      z-index: 15;
+      backdrop-filter: blur(15px);
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      margin-bottom: 2.5rem;
+    }
+
+    .logo-orb {
+      position: relative;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--secondary-cyan), var(--primary-violet));
+      box-shadow: 0 0 15px var(--secondary-cyan);
+      animation: logoPulse 4s infinite alternate;
+    }
+
+    @keyframes logoPulse {
+      0% { transform: scale(1); box-shadow: 0 0 10px var(--secondary-cyan); }
+      100% { transform: scale(1.15); box-shadow: 0 0 20px var(--accent-pink); }
+    }
+
+    .brand-logo h1 {
+      font-size: 1.3rem;
+      background: linear-gradient(to right, #fff, var(--secondary-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .nav-item a {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.85rem 1.25rem;
+      border-radius: 10px;
+      font-weight: 500;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid transparent;
+    }
+
+    .nav-item a i {
+      font-size: 1.15rem;
+      transition: transform 0.3s;
+    }
+
+    .nav-item a:hover {
+      color: var(--text-main);
+      background: rgba(124, 58, 237, 0.15);
+      border-color: rgba(124, 58, 237, 0.2);
+    }
+
+    .nav-item a:hover i {
+      transform: translateX(3px) scale(1.1);
+    }
+
+    .nav-item.active a {
+      color: var(--secondary-cyan);
+      background: rgba(0, 245, 255, 0.08);
+      border-color: rgba(0, 245, 255, 0.25);
+      box-shadow: 0 0 15px rgba(0, 245, 255, 0.1);
+      font-weight: bold;
+    }
+
+    .nav-item.active a::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 15%;
+      height: 70%;
+      width: 4px;
+      background: var(--secondary-cyan);
+      border-radius: 0 4px 4px 0;
+      box-shadow: 0 0 10px var(--secondary-cyan);
+    }
+
+    .logout-btn-container {
+      margin-top: auto;
+    }
+
+    .logout-btn {
+      width: 100%;
+      background: rgba(255, 0, 110, 0.1);
+      border: 1px solid rgba(255, 0, 110, 0.2);
+      color: var(--accent-pink);
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-family: inherit;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all var(--transition-speed);
+    }
+
+    .logout-btn:hover {
+      background: var(--accent-pink);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(255, 0, 110, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* Main Content Area */
+    main.main-content {
+      grid-area: main;
+      padding: 2rem;
+      overflow-y: auto;
+      max-height: calc(100vh - 80px);
+    }
+
+    /* Mobile Bottom Navigation (Hidden on Desktop) */
+    .mobile-bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(8, 8, 25, 0.92);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border-top: 1px solid rgba(124, 58, 237, 0.25);
+      z-index: 99;
+      padding: 0.5rem 0;
+      justify-content: space-around;
+    }
+
+    .mobile-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.75rem;
+      gap: 3px;
+      transition: all var(--transition-speed);
+    }
+
+    .mobile-nav-item i {
+      font-size: 1.3rem;
+    }
+
+    .mobile-nav-item.active {
+      color: var(--secondary-cyan);
+      text-shadow: var(--text-glow-shadow);
+    }
+
+    /* ==========================================
+       3. VIEW / TAB PAGES & WRAPPERS
+       ========================================== */
+    .view-section {
+      display: none; /* Controlled by active class in JS */
+      animation: scaleFadeInIntro 0.6s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+      opacity: 0;
+      transform: translateZ(-200px) scale(0.95);
+    }
+
+    .view-section.active-view {
+      display: block;
+    }
+
+    @keyframes scaleFadeInIntro {
+      to {
+        opacity: 1;
+        transform: translateZ(0) scale(1);
+      }
+    }
+
+    /* Hero / Landing Screen (Before Auth) */
+    .hero-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 4rem);
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .orbiting-universe {
+      position: relative;
+      width: 180px;
+      height: 180px;
+      margin-bottom: 2rem;
+      transform-style: preserve-3d;
+      animation: spinGlobe 20s linear infinite;
+    }
+
+    @keyframes spinGlobe {
+      to { transform: rotateY(360deg); }
+    }
+
+    .universe-core {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 70px;
+      height: 70px;
+      background: radial-gradient(circle, #fff, var(--secondary-cyan) 40%, var(--primary-violet));
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 50px rgba(0, 245, 255, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.6);
+    }
+
+    .orbit-ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 160px;
+      height: 160px;
+      border: 2px solid rgba(0, 245, 255, 0.25);
+      border-radius: 50%;
+      transform: translate(-50%, -50%) rotateX(75deg);
+      transform-style: preserve-3d;
+    }
+
+    .orbit-ring-2 {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200px;
+      height: 200px;
+      border: 1.5px dashed rgba(255, 0, 110, 0.3);
+      border-radius: 50%;
+      transform: translate(-50%, -50%) rotateX(60deg) rotateY(30deg);
+      transform-style: preserve-3d;
+    }
+
+    .satellite {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background-color: var(--accent-pink);
+      border-radius: 50%;
+      top: 0;
+      left: 50%;
+      margin-left: -7px;
+      box-shadow: 0 0 10px var(--accent-pink);
+      animation: satelliteTravel 6s linear infinite;
+    }
+
+    @keyframes satelliteTravel {
+      from { transform: rotate(0deg) translateX(80px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(80px) rotate(-360deg); }
+    }
+
+    .hero-title {
+      font-size: 3.8rem;
+      margin-bottom: 1rem;
+      letter-spacing: 4px;
+      line-height: 1.1;
+    }
+
+    .hero-tagline {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      max-width: 500px;
+      margin-bottom: 2.5rem;
+    }
+
+    .btn {
+      position: relative;
+      background: linear-gradient(135deg, var(--primary-violet), var(--secondary-cyan));
+      border: none;
+      color: #fff;
+      padding: 0.95rem 2.2rem;
+      font-size: 1rem;
+      font-weight: bold;
+      border-radius: 30px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.3s;
+      overflow: hidden;
+      box-shadow: 0 5px 20px rgba(124, 58, 237, 0.4);
+    }
+
+    .btn:hover {
+      box-shadow: 0 8px 30px rgba(0, 245, 255, 0.6);
+      transform: translateY(-3px);
+    }
+
+    .btn:active {
+      transform: translateY(-1px);
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -50%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent);
+      transform: skewX(-25deg);
+      transition: 0.75s;
+    }
+
+    .btn:hover::before {
+      left: 120%;
+    }
+
+    /* Login & Registration Panels */
+    .auth-section {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: calc(100vh - 6rem);
+      padding: 2rem 0;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 440px;
+      padding: 2.5rem;
+      text-align: center;
+    }
+
+    .auth-tabs {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 30px;
+      padding: 4px;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(124, 58, 237, 0.15);
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 0.65rem;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: inherit;
+      font-weight: bold;
+      border-radius: 26px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .auth-tab.active-tab {
+      background: linear-gradient(135deg, var(--primary-violet), var(--secondary-cyan));
+      color: #fff;
+      box-shadow: 0 3px 12px rgba(124, 58, 237, 0.3);
+    }
+
+    .form-group {
+      text-align: left;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-wrapper i {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      transition: color 0.3s;
+    }
+
+    .form-input {
+      width: 100%;
+      background: rgba(8, 8, 25, 0.6);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem 0.85rem 2.8rem;
+      color: #fff;
+      font-family: inherit;
+      transition: all 0.3s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--secondary-cyan);
+      box-shadow: 0 0 15px rgba(0, 245, 255, 0.2);
+    }
+
+    .form-input:focus + i {
+      color: var(--secondary-cyan);
+    }
+
+    .auth-submit-btn {
+      width: 100%;
+      margin-top: 1rem;
+      padding: 0.95rem;
+      border-radius: 10px;
+    }
+
+    .auth-toggle-msg {
+      margin-top: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .auth-toggle-msg span {
+      color: var(--secondary-cyan);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* ==========================================
+       4. DASHBOARD VIEW
+       ========================================== */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    /* Overview Cards Row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 150px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 70px;
+      height: 70px;
+      background: radial-gradient(circle, rgba(var(--secondary-cyan-rgb), 0.1), transparent 70%);
+      pointer-events: none;
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stat-label i {
+      font-size: 1.2rem;
+    }
+
+    .stat-card.total-spent .stat-label i {
+      color: var(--accent-pink);
+    }
+
+    .stat-card.budget-rem .stat-label i {
+      color: var(--accent-emerald);
+    }
+
+    .stat-value {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 0.5rem 0;
+    }
+
+    /* Double charts panel grid */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .chart-card {
+      padding: 1.5rem;
+      min-height: 340px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .chart-header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .chart-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .canvas-container canvas {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    /* Budget Progress Arc Dashboard Panel */
+    .budget-ring-card {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      height: 100%;
+    }
+
+    .budget-progress-info {
+      text-align: center;
+      margin-top: 1rem;
+    }
+
+    .budget-percentage {
+      font-size: 2.8rem;
+      font-weight: 900;
+      color: var(--secondary-cyan);
+      text-shadow: var(--text-glow-shadow);
+    }
+
+    .budget-status-label {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+    }
+
+    /* Recent Transactions widget */
+    .recent-transactions-card {
+      grid-column: span 2;
+      padding: 1.5rem;
+    }
+
+    .widget-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .widget-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .view-all-link {
+      color: var(--secondary-cyan);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: opacity 0.3s;
+    }
+
+    .view-all-link:hover {
+      opacity: 0.8;
+      text-shadow: 0 0 5px var(--secondary-cyan);
+    }
+
+    .transaction-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .transaction-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.95rem 1.25rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      transition: all 0.3s;
+    }
+
+    .transaction-item:hover {
+      background: rgba(124, 58, 237, 0.08);
+      border-color: rgba(124, 58, 237, 0.25);
+      transform: translateY(-2px) translateZ(10px);
+    }
+
+    .tx-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .tx-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: rgba(124, 58, 237, 0.15);
+      border: 1px solid rgba(124, 58, 237, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+    }
+
+    .tx-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .tx-note {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .tx-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .tx-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .tx-amount {
+      font-weight: 700;
+      font-size: 1.15rem;
+    }
+
+    .tx-amount.negative {
+      color: var(--accent-pink);
+    }
+
+    .tx-amount.positive {
+      color: var(--accent-emerald);
+    }
+
+    .delete-tx-mini-btn {
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 5px;
+      transition: all var(--transition-speed);
+    }
+
+    .delete-tx-mini-btn:hover {
+      color: var(--accent-pink);
+      background: rgba(255, 0, 110, 0.1);
+    }
+
+    .no-data-msg {
+      color: var(--text-muted);
+      text-align: center;
+      padding: 2rem 0;
+      font-style: italic;
+    }
+
+    /* Floating CTA Add Button on Dashboard */
+    .dashboard-action-panel {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    /* ==========================================
+       5. TRANSACTION HISTORY VIEW
+       ========================================== */
+    .filter-panel {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .search-input-wrapper {
+      position: relative;
+    }
+
+    .search-input-wrapper i {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+
+    .filter-search {
+      width: 100%;
+      background: rgba(15, 15, 42, 0.6);
+      border: 1px solid var(--glass-border);
+      color: #fff;
+      border-radius: 10px;
+      padding: 0.75rem 1rem 0.75rem 2.5rem;
+      font-family: inherit;
+    }
+
+    .filter-search:focus {
+      outline: none;
+      border-color: var(--secondary-cyan);
+    }
+
+    .select-dropdown {
+      background: rgba(15, 15, 42, 0.6);
+      border: 1px solid var(--glass-border);
+      color: #fff;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .select-dropdown:focus {
+      outline: none;
+      border-color: var(--secondary-cyan);
+    }
+
+    .select-dropdown option {
+      background-color: var(--bg-space-dark);
+      color: #fff;
+    }
+
+    .history-card {
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .history-table th {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 1rem;
+      border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .history-table th:hover {
+      color: var(--secondary-cyan);
+    }
+
+    .history-table th i {
+      margin-left: 5px;
+      font-size: 0.8rem;
+    }
+
+    .history-table td {
+      padding: 1.1rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      vertical-align: middle;
+    }
+
+    .history-table tr {
+      transition: background-color 0.3s, transform 0.3s;
+    }
+
+    .history-table tbody tr:hover {
+      background: rgba(124, 58, 237, 0.05);
+      transform: scale(1.005) translateZ(5px);
+    }
+
+    .table-category-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.35rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .action-btn-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .table-action-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0.4rem;
+      border-radius: 5px;
+      transition: all 0.3s;
+    }
+
+    .table-action-btn.delete {
+      color: var(--text-muted);
+    }
+
+    .table-action-btn.delete:hover {
+      color: var(--accent-pink);
+      background: rgba(255, 0, 110, 0.15);
+    }
+
+    /* Table sorting indications */
+    .sort-asc::after { content: " ▴"; }
+    .sort-desc::after { content: " ▾"; }
+
+    /* ==========================================
+       6. BUDGET PLANNER VIEW
+       ========================================== */
+    .budget-header-panel {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .budget-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .budget-category-card {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 220px;
+    }
+
+    .budget-cat-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .budget-cat-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .budget-cat-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .budget-cat-name {
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    .budget-limit-edit-btn {
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: color 0.3s;
+    }
+
+    .budget-limit-edit-btn:hover {
+      color: var(--secondary-cyan);
+    }
+
+    .budget-progress-container {
+      margin: 1.5rem 0;
+    }
+
+    .budget-bar-track {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+
+    .budget-bar-fill {
+      height: 100%;
+      width: 0%; /* Dynamic */
+      border-radius: 4px;
+      transition: width 1s cubic-bezier(0.1, 0.8, 0.2, 1);
+    }
+
+    .budget-bar-text {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .budget-bar-text strong {
+      color: var(--text-main);
+    }
+
+    .budget-summary-stats {
+      font-size: 0.9rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .budget-status-tag {
+      font-size: 0.75rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .budget-status-tag.ok {
+      background: rgba(0, 255, 170, 0.15);
+      color: var(--accent-emerald);
+    }
+
+    .budget-status-tag.warning {
+      background: rgba(255, 165, 0, 0.15);
+      color: orange;
+    }
+
+    .budget-status-tag.over {
+      background: rgba(255, 0, 110, 0.15);
+      color: var(--accent-pink);
+      animation: neonPulseRed 1.5s infinite alternate;
+    }
+
+    @keyframes neonPulseRed {
+      from { box-shadow: 0 0 2px var(--accent-pink); }
+      to { box-shadow: 0 0 8px var(--accent-pink); }
+    }
+
+    /* Modal dialog for editing budget */
+    .budget-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(5, 5, 18, 0.8);
+      z-index: 100;
+      display: none; /* Controlled by active class */
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(8px);
+    }
+
+    .budget-modal.active-modal {
+      display: flex;
+    }
+
+    .budget-modal-content {
+      width: 100%;
+      max-width: 360px;
+      padding: 2rem;
+      text-align: center;
+      animation: flipOpen3D 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    /* ==========================================
+       7. CLOUD SETTINGS VIEW
+       ========================================== */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 2rem;
+    }
+
+    .settings-card {
+      padding: 2rem;
+    }
+
+    .sync-status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 10px;
+      border: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+
+    .sync-status-indicator.connected {
+      border-color: var(--accent-emerald);
+      background: rgba(0, 255, 170, 0.05);
+    }
+
+    .sync-status-indicator.connected i {
+      color: var(--accent-emerald);
+      text-shadow: 0 0 8px var(--accent-emerald);
+    }
+
+    .sync-status-indicator.disconnected i {
+      color: var(--text-muted);
+    }
+
+    .sql-instructions {
+      padding: 1.25rem;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.85rem;
+    }
+
+    .sql-code-block {
+      background: #020208;
+      border: 1px solid rgba(0, 245, 255, 0.2);
+      border-radius: 6px;
+      padding: 1rem;
+      color: var(--secondary-cyan);
+      font-family: 'Share Tech Mono', monospace;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      margin: 1rem 0;
+      position: relative;
+    }
+
+    .copy-sql-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 3px 8px;
+      font-size: 0.75rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .copy-sql-btn:hover {
+      background: rgba(0, 245, 255, 0.2);
+    }
+
+    /* ==========================================
+       8. ADD EXPENSE FLOATING MODAL
+       ========================================== */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(5, 5, 18, 0.75);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal-overlay.active-modal {
+      display: flex;
+    }
+
+    .modal-panel {
+      width: 100%;
+      max-width: 480px;
+      padding: 2.5rem;
+      transform-style: preserve-3d;
+      animation: flipOpen3D 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      backface-visibility: hidden;
+    }
+
+    @keyframes flipOpen3D {
+      from {
+        transform: perspective(1000px) rotateX(-90deg) scale(0.8);
+        opacity: 0;
+      }
+      to {
+        transform: perspective(1000px) rotateX(0deg) scale(1);
+        opacity: 1;
+      }
+    }
+
+    .modal-close-btn {
+      position: absolute;
+      top: 1rem;
+      right: 1.25rem;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.3rem;
+      cursor: pointer;
+      transition: color 0.3s;
+    }
+
+    .modal-close-btn:hover {
+      color: var(--accent-pink);
+    }
+
+    .modal-title {
+      font-family: 'Orbitron', sans-serif;
+      margin-bottom: 1.5rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 1.2rem;
+      border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+      padding-bottom: 0.5rem;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    /* Category option colors custom styling helper */
+    .category-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    /* ==========================================
+       9. RESPONSIVE MEDIA QUERIES
+       ========================================== */
+    @media (max-width: 1024px) {
+      .app-container {
+        grid-template-columns: 80px 1fr;
+      }
+      
+      .sidebar {
+        padding: 2rem 0.5rem;
+        align-items: center;
+      }
+      
+      .brand-logo h1, 
+      .nav-item span,
+      .logout-btn span {
+        display: none;
+      }
+
+      .brand-logo {
+        justify-content: center;
+        margin-bottom: 3.5rem;
+      }
+
+      .nav-item a {
+        padding: 0.85rem;
+        justify-content: center;
+      }
+
+      .nav-item a::before {
+        display: none;
+      }
+
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .recent-transactions-card {
+        grid-column: span 1;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .app-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        grid-template-areas: 
+          "header"
+          "main";
+      }
+
+      .sidebar {
+        display: none; /* Switch to bottom toolbar */
+      }
+
+      .mobile-bottom-nav {
+        display: flex;
+      }
+
+      header.main-header {
+        padding: 1rem 1.5rem;
+      }
+
+      main.main-content {
+        padding: 1.5rem 1rem 5.5rem 1rem; /* Offset bottom nav */
+        max-height: calc(100vh - 65px);
+      }
+
+      .charts-row {
+        grid-template-columns: 1fr;
+      }
+
+      .filter-panel {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .filter-panel > *:first-child {
+        grid-column: span 2;
+      }
+
+      .settings-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .stats-row {
+        grid-template-columns: 1fr;
+      }
+      
+      .stat-card {
+        height: 130px;
+      }
+
+      .filter-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .filter-panel > *:first-child {
+        grid-column: span 1;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-title {
+        font-size: 2.5rem;
+      }
+    }
+    /* Profile Dropdown */
+.profile-dropdown-wrapper {
+  position: relative;
+}
+
+.profile-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 220px;
+  background: rgba(8, 8, 25, 0.95);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 14px;
+  padding: 0.75rem;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+  backdrop-filter: blur(16px);
+  z-index: 200;
+  animation: flipOpen3D 0.3s ease forwards;
+}
+
+.profile-dropdown-menu.open {
+  display: block;
+}
+
+.profile-dropdown-header {
+  padding: 0.75rem 0.75rem 0.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  margin-bottom: 0.5rem;
+}
+
+.profile-dropdown-header .profile-email {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+.profile-dropdown-header .profile-name {
+  font-weight: bold;
+  font-size: 1rem;
+  color: var(--secondary-cyan);
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 1px;
+}
+
+.profile-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+}
+
+.profile-dropdown-item:hover {
+  background: rgba(124, 58, 237, 0.15);
+  color: var(--text-main);
+}
+
+.profile-dropdown-item i {
+  width: 16px;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.profile-dropdown-item.danger {
+  color: var(--accent-pink);
+}
+
+.profile-dropdown-item.danger:hover {
+  background: rgba(255, 0, 110, 0.12);
+}
+
+.profile-storage-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  color: var(--text-muted);
+}
+  </style>
+</head>
+<body>
+
+  <!-- Starfield Canvas -->
+  <canvas id="starfield-canvas"></canvas>
+  <div class="nebula nebula-violet"></div>
+  <div class="nebula nebula-cyan"></div>
+
+  <!-- ROOT SPA CONTENT WRAPPER -->
+  <div id="app-root">
+    
+    <!-- LANDING / HERO VIEW (Offline guest start page) -->
+    <div id="view-landing" class="view-section active-view">
+      <div class="hero-container">
+        <div class="orbiting-universe">
+          <div class="universe-core"></div>
+          <div class="orbit-ring"><div class="satellite"></div></div>
+          <div class="orbit-ring-2"></div>
+        </div>
+        <h2 class="hero-title orbitron-title">SpendOrbit</h2>
+        <p class="hero-tagline">Navigate your finances across the cosmos. 3D physics, real-time cloud sync, and absolute tracking control.</p>
+        <button class="btn" onclick="navigateTo('auth')">
+          <i class="fa-solid fa-rocket" style="margin-right: 8px;"></i> Initiate Launch
+        </button>
+      </div>
+    </div>
+
+    <!-- AUTHENTICATION VIEW (Local & Supabase login forms) -->
+    <div id="view-auth" class="view-section">
+      <div class="auth-section">
+        <div class="auth-card glass-panel tilt-card">
+          <div class="auth-tabs">
+            <button id="tab-login" class="auth-tab active-tab" onclick="switchAuthTab('login')">Login</button>
+            <button id="tab-register" class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+          </div>
+          
+          <h2 id="auth-card-title" class="orbitron-title" style="font-size: 1.3rem; margin-bottom: 1.5rem;">Access Dashboard</h2>
+          
+          <form id="auth-form" onsubmit="handleAuthSubmit(event)">
+            <div class="form-group">
+              <label for="auth-email">Email / Username</label>
+              <div class="input-wrapper">
+                <input type="text" id="auth-email" class="form-input" required placeholder="spacecadet@orbit.com">
+                <i class="fa-solid fa-user-astronaut"></i>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="auth-password">Security Key (Password)</label>
+              <div class="input-wrapper">
+                <input type="password" id="auth-password" class="form-input" required placeholder="••••••••">
+                <i class="fa-solid fa-key"></i>
+              </div>
+            </div>
+
+            <!-- Warning/Error state message board -->
+            <p id="auth-feedback-msg" style="color: var(--accent-pink); font-size: 0.85rem; margin-bottom: 1rem; text-align: left; display: none;"></p>
+            
+            <button type="submit" class="btn auth-submit-btn">
+              <span id="auth-submit-label">Enter Orbit</span>
+            </button>
+          </form>
+
+          <p class="auth-toggle-msg">
+            <span id="auth-toggle-hint-desc">Don't have an account?</span> 
+            <span id="auth-toggle-hint-btn" onclick="toggleAuthModes()">Sign up</span>
+          </p>
+
+          <div style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
+            <i class="fa-solid fa-circle-info" style="margin-right: 5px;"></i> Running in <strong>Offline/LocalStorage</strong> mode by default. Connect a database in Settings later.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN APP SHELL VIEW (Visible only when logged in) -->
+    <div id="view-dashboard-shell" class="view-section">
+      <div class="app-container">
+        
+        <!-- Sidebar nav (desktop) -->
+        <aside class="sidebar">
+          <div>
+            <a href="#" class="brand-logo" onclick="navigateToView('dashboard')">
+              <div class="logo-orb"></div>
+              <h1 class="orbitron-title">SpendOrbit</h1>
+            </a>
+            <ul class="nav-list">
+              <li id="nav-dashboard" class="nav-item active">
+                <a href="#" onclick="navigateToView('dashboard')">
+                  <i class="fa-solid fa-chart-pie"></i>
+                  <span>Overview</span>
+                </a>
+              </li>
+              <li id="nav-history" class="nav-item">
+                <a href="#" onclick="navigateToView('history')">
+                  <i class="fa-solid fa-list-check"></i>
+                  <span>Transactions</span>
+                </a>
+              </li>
+              <li id="nav-budgets" class="nav-item">
+                <a href="#" onclick="navigateToView('budgets')">
+                  <i class="fa-solid fa-scale-balanced"></i>
+                  <span>Budget Planner</span>
+                </a>
+              </li>
+              <li id="nav-settings" class="nav-item">
+                <a href="#" onclick="navigateToView('settings')">
+                  <i class="fa-solid fa-circle-nodes"></i>
+                  <span>Cloud DB Settings</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+          
+          <div class="logout-btn-container">
+            <button class="logout-btn" onclick="logoutUser()">
+              <i class="fa-solid fa-power-off"></i>
+              <span>Deorbit</span>
+            </button>
+          </div>
+        </aside>
+
+        <!-- Header bar -->
+        <header class="main-header">
+          <div>
+            <h2 id="header-greeting" style="font-size: 1.15rem; font-weight: bold;">Welcome back, Pilot</h2>
+            <p id="header-date" class="mono" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 3px;"></p>
+          </div>
+          <div class="user-profile">
+            <div id="db-indicator-badge" class="table-category-badge" style="background: rgba(124, 58, 237, 0.15); border: 1px solid rgba(124, 58, 237, 0.3); color: var(--text-muted); cursor: pointer;" onclick="navigateToView('settings')">
+              <i class="fa-solid fa-database" style="margin-right: 4px;"></i> <span id="db-indicator-label">Offline</span>
+            </div>
+           <div class="profile-dropdown-wrapper">
+  <div class="avatar-wrapper" onclick="toggleProfileDropdown()" style="cursor: pointer;">
+    <div class="avatar-inner" id="avatar-initials">U</div>
+    <div class="status-dot"></div>
+  </div>
+
+  <div class="profile-dropdown-menu" id="profile-dropdown">
+    <div class="profile-dropdown-header">
+      <div class="profile-name" id="dropdown-username">Pilot</div>
+      <div class="profile-email" id="dropdown-email">—</div>
+    </div>
+
+    <div class="profile-storage-badge" id="dropdown-storage-badge">
+      <i class="fa-solid fa-database"></i>
+      <span id="dropdown-storage-label">Local Offline</span>
+    </div>
+
+    <button class="profile-dropdown-item" onclick="navigateToView('settings'); closeProfileDropdown()">
+      <i class="fa-solid fa-circle-nodes"></i> Cloud DB Settings
+    </button>
+
+    <button class="profile-dropdown-item" onclick="navigateToView('budgets'); closeProfileDropdown()">
+      <i class="fa-solid fa-scale-balanced"></i> Budget Planner
+    </button>
+
+    <hr style="border-color: rgba(255,255,255,0.06); margin: 0.5rem 0;">
+
+    <button class="profile-dropdown-item danger" onclick="logoutUser()">
+      <i class="fa-solid fa-power-off"></i> Deorbit (Logout)
+    </button>
+  </div>
+</div>
+          </div>
+        </header>
+
+        <!-- Main tab page panels -->
+        <main class="main-content">
+
+          <!-- 1. DASHBOARD OVERVIEW VIEW -->
+          <div id="subview-dashboard" class="subview-panel" style="display: block;">
+            
+            <div class="dashboard-action-panel">
+              <button class="btn" onclick="openExpenseModal()">
+                <i class="fa-solid fa-plus-circle" style="margin-right: 8px;"></i> Log Space Expense
+              </button>
+            </div>
+
+            <div class="dashboard-grid">
+              
+              <!-- Left Dashboard widgets -->
+              <div>
+                <div class="stats-row">
+                  
+                  <div class="stat-card glass-panel total-spent tilt-card">
+                    <div class="stat-label">
+                      <span>Spent This Month</span>
+                      <i class="fa-solid fa-circle-arrow-down"></i>
+                    </div>
+                    <div class="stat-value mono"><span style="font-size: 1.25rem;">$</span><span id="counter-total-spent">0.00</span></div>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">Auto-recalculating on transactions</p>
+                  </div>
+
+                  <div class="stat-card glass-panel budget-rem tilt-card">
+                    <div class="stat-label">
+                      <span>Monthly Remaining</span>
+                      <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div class="stat-value mono"><span style="font-size: 1.25rem;">$</span><span id="counter-budget-remaining">0.00</span></div>
+                    <p id="dashboard-budget-status" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">No active warning</p>
+                  </div>
+
+                </div>
+
+                <!-- Charts layout grid -->
+                <div class="charts-row">
+                  
+                  <div class="chart-card glass-panel tilt-card">
+                    <div class="chart-header">
+                      <h3 class="chart-title">3D Extruded Category Donut</h3>
+                      <i class="fa-solid fa-circle-notch" style="color: var(--secondary-cyan);"></i>
+                    </div>
+                    <div class="canvas-container">
+                      <canvas id="canvas-donut" width="280" height="220"></canvas>
+                    </div>
+                  </div>
+
+                  <div class="chart-card glass-panel tilt-card">
+                    <div class="chart-header">
+                      <h3 class="chart-title">Last 6 Months Log</h3>
+                      <i class="fa-solid fa-chart-simple" style="color: var(--accent-pink);"></i>
+                    </div>
+                    <div class="canvas-container">
+                      <canvas id="canvas-bars" width="280" height="220"></canvas>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- Right Dashboard widgets -->
+              <div>
+                <div class="budget-ring-card glass-panel tilt-card">
+                  <div class="chart-header" style="justify-content: center;">
+                    <h3 class="chart-title">Monthly Allocation</h3>
+                  </div>
+                  <div class="canvas-container" style="min-height: 170px;">
+                    <canvas id="canvas-remaining-ring" width="160" height="160"></canvas>
+                  </div>
+                  <div class="budget-progress-info">
+                    <div class="budget-percentage mono"><span id="dashboard-budget-percent">0</span>%</div>
+                    <div class="budget-status-label">Total monthly budget used</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Recent transactions log table grid row -->
+              <div class="recent-transactions-card glass-panel tilt-card">
+                <div class="widget-header">
+                  <h3 class="widget-title">Recent Celestial Flights</h3>
+                  <a href="#" class="view-all-link" onclick="navigateToView('history')">View Log <i class="fa-solid fa-arrow-right"></i></a>
+                </div>
+                <div class="transaction-feed" id="dashboard-recent-transactions">
+                  <!-- Injected via JS -->
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- 2. TRANSACTION HISTORY TABLE VIEW -->
+          <div id="subview-history" class="subview-panel" style="display: none;">
+            
+            <div class="filter-panel">
+              <div class="search-input-wrapper">
+                <input type="text" id="search-tx" class="filter-search" placeholder="Search orbit note logs..." oninput="renderHistoryTable()">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </div>
+              
+              <select id="filter-category" class="select-dropdown" onchange="renderHistoryTable()">
+                <option value="ALL">All Sectors (Categories)</option>
+                <option value="Food">🍔 Food</option>
+                <option value="Transport">🚗 Transport</option>
+                <option value="Housing">🏠 Housing</option>
+                <option value="Entertainment">🎮 Entertainment</option>
+                <option value="Health">💊 Health</option>
+                <option value="Shopping">🛍️ Shopping</option>
+                <option value="Utilities">⚡ Utilities</option>
+                <option value="Other">➕ Other</option>
+              </select>
+
+              <select id="filter-month" class="select-dropdown" onchange="renderHistoryTable()">
+                <option value="ALL">All Planetary Cycles</option>
+                <!-- Filled dynamically by JavaScript based on transaction dates -->
+              </select>
+
+              <button class="btn" style="padding: 0 1rem; height: 100%; border-radius: 10px;" onclick="openExpenseModal()">
+                <i class="fa-solid fa-plus" style="margin-right: 4px;"></i> Log New
+              </button>
+            </div>
+
+            <div class="history-card glass-panel">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th onclick="sortTableBy('date')">Stardate <i id="sort-icon-date" class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTableBy('note')">Note Entry <i id="sort-icon-note" class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTableBy('category')">Sector Category <i id="sort-icon-category" class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTableBy('amount')" style="text-align: right;">Credits (Amount) <i id="sort-icon-amount" class="fa-solid fa-sort"></i></th>
+                    <th style="text-align: center;">Controls</th>
+                  </tr>
+                </thead>
+                <tbody id="history-table-body">
+                  <!-- Injected dynamically via JS -->
+                </tbody>
+              </table>
+              <div id="history-empty-msg" class="no-data-msg" style="display: none;">
+                No matching transactions recorded in this navigation log.
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 3. BUDGET PLANNER PANEL VIEW -->
+          <div id="subview-budgets" class="subview-panel" style="display: none;">
+            
+            <div class="budget-header-panel">
+              <div>
+                <h2 class="orbitron-title" style="font-size: 1.15rem;">Global Sector Budgets</h2>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 3px;">Set spending restrictions on star sectors</p>
+              </div>
+              <div style="font-size: 1.1rem;" class="mono">
+                Total Budget Allocation: <span id="budget-sum-allocated" style="color: var(--secondary-cyan); font-weight: bold;">$0.00</span>
+              </div>
+            </div>
+
+            <div class="budget-grid" id="budget-grid-list">
+              <!-- Injected dynamically via JS -->
+            </div>
+
+          </div>
+
+          <!-- 4. CLOUD DATABASE SETTINGS VIEW -->
+          <div id="subview-settings" class="subview-panel" style="display: none;">
+            
+            <div class="settings-grid">
+              
+              <!-- Connection details -->
+              <div class="settings-card glass-panel">
+                <h2 class="orbitron-title" style="font-size: 1.2rem; margin-bottom: 1.5rem;">Supabase Database Link</h2>
+                
+                <div id="settings-status-box" class="sync-status-indicator disconnected">
+                  <i class="fa-solid fa-circle-nodes"></i>
+                  <div>
+                    <div style="font-weight: bold;" id="settings-status-title">Status: Local Offline</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);" id="settings-status-desc">Data stored strictly in browser localStorage.</div>
+                  </div>
+                </div>
+
+                <form id="settings-db-form" onsubmit="handleSaveDbSettings(event)">
+                  <div class="form-group">
+                    <label for="settings-db-url">Supabase Project API URL</label>
+                    <div class="input-wrapper">
+                      <input type="url" id="settings-db-url" class="form-input" placeholder="https://your-project.supabase.co">
+                      <i class="fa-solid fa-cloud"></i>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="settings-db-key">Supabase Anon Public API Key</label>
+                    <div class="input-wrapper">
+                      <input type="password" id="settings-db-key" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                      <i class="fa-solid fa-lock"></i>
+                    </div>
+                  </div>
+
+                  <div id="settings-feedback-msg" style="color: var(--accent-pink); font-size: 0.85rem; margin-bottom: 1rem; display: none;"></div>
+
+                  <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="submit" class="btn" style="flex: 1;">
+                      <i class="fa-solid fa-plug" style="margin-right: 6px;"></i> Connect Cloud Engine
+                    </button>
+                    <button type="button" id="settings-db-disconnect" class="btn" style="background: rgba(255, 0, 110, 0.15); border: 1px solid rgba(255, 0, 110, 0.3); color: var(--accent-pink); display: none;" onclick="disconnectCloudDb()">
+                      Disconnect
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Database setup query code guide -->
+              <div class="settings-card glass-panel">
+                <h3 class="orbitron-title" style="font-size: 1rem; margin-bottom: 1rem;">Setup Instructions</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                  Create a free project at <a href="https://supabase.com" target="_blank" style="color: var(--secondary-cyan);">supabase.com</a>. Once created, run the SQL setup script below in their <strong>SQL Editor</strong>:
+                </p>
+                <div class="sql-code-block">
+                  <button class="copy-sql-btn" onclick="copySqlSchema()">Copy SQL</button>
+                  <code id="sql-schema-code">-- Create the expenses log table
+create table expenses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  amount numeric not null,
+  category text not null,
+  date date not null default now(),
+  note text,
+  created_at timestamp with time zone default now()
+);
+
+-- Create the budget planner configuration table
+create table budgets (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  category text not null,
+  amount numeric not null,
+  created_at timestamp with time zone default now(),
+  unique (user_id, category)
+);
+
+-- Enable Row Level Security (RLS) policies
+alter table expenses enable row level security;
+alter table budgets enable row level security;
+
+create policy "Users manage own expenses" on expenses 
+  for all using (auth.uid() = user_id);
+
+create policy "Users manage own budgets" on budgets 
+  for all using (auth.uid() = user_id);</code>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+                  <i class="fa-solid fa-triangle-exclamation" style="color: orange; margin-right: 5px;"></i> Ensure RLS is active so users cannot view other people's expense ledgers.
+                </p>
+              </div>
+
+            </div>
+          </div>
+
+        </main>
+
+        <!-- Floating Mobile Navigation (Visible only on responsive media break) -->
+        <nav class="mobile-bottom-nav">
+          <a href="#" id="mobile-nav-dashboard" class="mobile-nav-item active" onclick="navigateToView('dashboard')">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>Overview</span>
+          </a>
+          <a href="#" id="mobile-nav-history" class="mobile-nav-item" onclick="navigateToView('history')">
+            <i class="fa-solid fa-list-check"></i>
+            <span>Log</span>
+          </a>
+          <a href="#" id="mobile-nav-budgets" class="mobile-nav-item" onclick="navigateToView('budgets')">
+            <i class="fa-solid fa-scale-balanced"></i>
+            <span>Budget</span>
+          </a>
+          <a href="#" id="mobile-nav-settings" class="mobile-nav-item" onclick="navigateToView('settings')">
+            <i class="fa-solid fa-circle-nodes"></i>
+            <span>Cloud</span>
+          </a>
+        </nav>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FLOATING MODAL PANEL FOR ADDING EXPENSES -->
+  <div id="expense-modal-overlay" class="modal-overlay" onclick="closeExpenseModalOnOutsideClick(event)">
+    <div class="modal-panel glass-panel">
+      <button class="modal-close-btn" onclick="closeExpenseModal()"><i class="fa-solid fa-circle-xmark"></i></button>
+      <h3 class="modal-title orbitron-title">Log Expense Flight</h3>
+      
+      <form id="expense-form" onsubmit="handleExpenseSubmit(event)">
+        <input type="hidden" id="expense-id-edit">
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="expense-amount">Credits (Amount)</label>
+            <div class="input-wrapper">
+              <input type="number" step="0.01" min="0.01" id="expense-amount" class="form-input mono" required placeholder="0.00">
+              <i class="fa-solid fa-circle-dollar-to-slot"></i>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="expense-category">System Sector</label>
+            <select id="expense-category" class="select-dropdown" style="width: 100%; height: 47px;" required>
+              <option value="Food">🍔 Food</option>
+              <option value="Transport">🚗 Transport</option>
+              <option value="Housing">🏠 Housing</option>
+              <option value="Entertainment">🎮 Entertainment</option>
+              <option value="Health">💊 Health</option>
+              <option value="Shopping">🛍️ Shopping</option>
+              <option value="Utilities">⚡ Utilities</option>
+              <option value="Other" selected>➕ Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="expense-date">Stardate</label>
+          <div class="input-wrapper">
+            <input type="date" id="expense-date" class="form-input mono" required>
+            <i class="fa-solid fa-calendar-days"></i>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 2rem;">
+          <label for="expense-note">Flight Log Note</label>
+          <div class="input-wrapper">
+            <input type="text" id="expense-note" class="form-input" required placeholder="Description of cargo / payload expense...">
+            <i class="fa-solid fa-file-invoice"></i>
+          </div>
+        </div>
+
+        <button type="submit" class="btn" style="width: 100%;">
+          <i class="fa-solid fa-circle-plus" style="margin-right: 6px;"></i> Save Flight Log
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- FLOATING MODAL PANEL FOR CATEGORY BUDGET UPDATING -->
+  <div id="budget-modal-overlay" class="budget-modal" onclick="closeBudgetModalOnOutsideClick(event)">
+    <div class="budget-modal-content glass-panel">
+      <h3 class="modal-title orbitron-title" id="budget-modal-category-title">Edit Sector Budget</h3>
+      <form id="budget-form" onsubmit="handleBudgetSubmit(event)">
+        <input type="hidden" id="budget-modal-category-name">
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+          <label for="budget-modal-amount">Budget Cap Limit ($)</label>
+          <div class="input-wrapper">
+            <input type="number" step="1" min="0" id="budget-modal-amount" class="form-input mono" required placeholder="500">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+        </div>
+        <div style="display: flex; gap: 1rem;">
+          <button type="submit" class="btn" style="flex: 1;">Save Limit</button>
+          <button type="button" class="btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted);" onclick="closeBudgetModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  
+  <script>
+    // Global Configuration
+    const CATEGORIES = {
+      Food: { emoji: '🍔', color: '#7c3aed', icon: 'fa-hamburger' },
+      Transport: { emoji: '🚗', color: '#00f5ff', icon: 'fa-car' },
+      Housing: { emoji: '🏠', color: '#00ffaa', icon: 'fa-house' },
+      Entertainment: { emoji: '🎮', color: '#ff006e', icon: 'fa-gamepad' },
+      Health: { emoji: '💊', color: '#3b82f6', icon: 'fa-suitcase-medical' },
+      Shopping: { emoji: '🛍️', color: '#f59e0b', icon: 'fa-bag-shopping' },
+      Utilities: { emoji: '⚡', color: '#eab308', icon: 'fa-bolt' },
+      Other: { emoji: '➕', color: '#8a8ab0', icon: 'fa-circle-nodes' }
+    };
+
+    // Client state
+    let state = {
+      view: 'landing', // landing, auth, dashboard-shell
+      subview: 'dashboard', // dashboard, history, budgets, settings
+      authMode: 'login', // login, register
+      user: null, // Logged in user account details { id, email, username }
+      expenses: [],
+      budgets: {},
+      storageMode: 'local', // local, cloud
+      supabaseUrl: '',
+      supabaseAnonKey: '',
+      supabaseClient: null,
+      historySort: { key: 'date', dir: 'desc' }
+    };
+
+    // Initial load hook
+    window.addEventListener('DOMContentLoaded', () => {
+      initStarfield();
+      initCardTilt();
+      loadDbSettings();
+      checkActiveSession();
+      updateDateStrings();
+      
+      // Auto resize canvases on window stretch
+      window.addEventListener('resize', () => {
+        resizeStarfieldCanvas();
+        if (state.user) {
+          triggerChartRenders();
+        }
+      });
+    });
+
+    // Stardate header dates
+    function updateDateStrings() {
+      const d = new Date();
+      const stardate = (d.getFullYear() + (d.getMonth() + 1)/12 + d.getDate()/365).toFixed(4);
+      document.getElementById('header-date').innerText = `Solar Cycle STARDATE: ${stardate} | ${d.toLocaleDateString()}`;
+    }
+
+    // SPA navigation manager (root level tabs)
+    function navigateTo(targetView) {
+      document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active-view'));
+      
+      const targetSec = document.getElementById(`view-${targetView}`);
+      if (targetSec) {
+        targetSec.classList.add('active-view');
+        state.view = targetView;
+      }
+      
+      if (targetView === 'dashboard-shell') {
+        navigateToView(state.subview);
+      }
+    }
+
+    // App sidebar navigation controller (subviews)
+    function navigateToView(subviewName) {
+      state.subview = subviewName;
+      
+      // Hide all panels
+      document.querySelectorAll('.subview-panel').forEach(p => p.style.display = 'none');
+      // Highlight sidebar selections
+      document.querySelectorAll('.nav-item').forEach(li => li.classList.remove('active'));
+      document.querySelectorAll('.mobile-nav-item').forEach(a => a.classList.remove('active'));
+      
+      // Show targeted panel
+      const targetPanel = document.getElementById(`subview-${subviewName}`);
+      if (targetPanel) {
+        targetPanel.style.display = 'block';
+        // Add active classes
+        const sideNav = document.getElementById(`nav-${subviewName}`);
+        if (sideNav) sideNav.classList.add('active');
+        const mobNav = document.getElementById(`mobile-nav-${subviewName}`);
+        if (mobNav) mobNav.classList.add('active');
+        
+        // Custom animation actions per view selection
+        if (subviewName === 'dashboard') {
+          loadDataAndSyncDash();
+        } else if (subviewName === 'history') {
+          populateMonthFilter();
+          renderHistoryTable();
+        } else if (subviewName === 'budgets') {
+          renderBudgetsPanel();
+        } else if (subviewName === 'settings') {
+          renderCloudSettings();
+        }
+      }
+    }
+
+    // ==========================================
+    // STARFIELD SYSTEM CANVAS
+    // ==========================================
+    let stars = [];
+    function initStarfield() {
+      const canvas = document.getElementById('starfield-canvas');
+      resizeStarfieldCanvas();
+      
+      const starCount = 130;
+      stars = [];
+      for(let i=0; i<starCount; i++) {
+        stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          radius: Math.random() * 1.5 + 0.2,
+          speed: Math.random() * 0.4 + 0.05,
+          glow: Math.random() > 0.8,
+          alpha: Math.random()
+        });
+      }
+      
+      animateStars();
+    }
+
+    function resizeStarfieldCanvas() {
+      const canvas = document.getElementById('starfield-canvas');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    function animateStars() {
+      const canvas = document.getElementById('starfield-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      stars.forEach(s => {
+        // Move star down slowly
+        s.y += s.speed;
+        if (s.y > canvas.height) {
+          s.y = 0;
+          s.x = Math.random() * canvas.width;
+        }
+        
+        // Draw star
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+        
+        if (s.glow) {
+          ctx.fillStyle = `rgba(0, 245, 255, ${s.alpha})`;
+          ctx.shadowBlur = 6;
+          ctx.shadowColor = '#00f5ff';
+        } else {
+          ctx.fillStyle = `rgba(240, 240, 255, ${s.alpha})`;
+          ctx.shadowBlur = 0;
+        }
+        ctx.fill();
+        
+        // Pulse alpha slowly
+        s.alpha += (Math.random() > 0.5 ? 0.02 : -0.02);
+        if (s.alpha > 1) s.alpha = 1;
+        if (s.alpha < 0.2) s.alpha = 0.2;
+      });
+      
+      ctx.shadowBlur = 0; // reset
+      requestAnimationFrame(animateStars);
+    }
+
+    // ==========================================
+    // 3D GLASS TILT ROTATION SYSTEM
+    // ==========================================
+    function initCardTilt() {
+      // Listen for moving hover across the layout
+      document.addEventListener('mousemove', (e) => {
+        const tiltCards = document.querySelectorAll('.tilt-card');
+        tiltCards.forEach(card => {
+          const rect = card.getBoundingClientRect();
+          
+          // Check if cursor is over the card
+          if (
+            e.clientX >= rect.left && e.clientX <= rect.right &&
+            e.clientY >= rect.top && e.clientY <= rect.bottom
+          ) {
+            const width = rect.width;
+            const height = rect.height;
+            // Center coordinates
+            const mouseX = e.clientX - rect.left - (width / 2);
+            const mouseY = e.clientY - rect.top - (height / 2);
+            
+            // Calculate tilt degrees (Max 8 deg for clean styling)
+            const rY = (mouseX / (width / 2)) * 8;
+            const rX = -(mouseY / (height / 2)) * 8;
+            
+            card.style.transform = `perspective(1000px) rotateX(${rX}deg) rotateY(${rY}deg) translateZ(10px)`;
+          } else {
+            // Smoothly reset on leave
+            card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)';
+          }
+        });
+      });
+    }
+
+    // ==========================================
+    // CRYPTO SECURED USER LOCAL AUTH SYSTEM
+    // ==========================================
+    
+    // Hash passwords locally via Web Crypto API for secure offline comparison
+    async function sha256(message) {
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function switchAuthTab(mode) {
+      state.authMode = mode;
+      const tLogin = document.getElementById('tab-login');
+      const tReg = document.getElementById('tab-register');
+      const title = document.getElementById('auth-card-title');
+      const label = document.getElementById('auth-submit-label');
+      const hintDesc = document.getElementById('auth-toggle-hint-desc');
+      const hintBtn = document.getElementById('auth-toggle-hint-btn');
+      
+      document.getElementById('auth-feedback-msg').style.display = 'none';
+
+      if (mode === 'login') {
+        tLogin.classList.add('active-tab');
+        tReg.classList.remove('active-tab');
+        title.innerText = "Access Dashboard";
+        label.innerText = "Enter Orbit";
+        hintDesc.innerText = "Don't have an account?";
+        hintBtn.innerText = "Sign up";
+      } else {
+        tReg.classList.add('active-tab');
+        tLogin.classList.remove('active-tab');
+        title.innerText = "Register Flight Officer";
+        label.innerText = "Establish Comms";
+        hintDesc.innerText = "Already registered?";
+        hintBtn.innerText = "Login";
+      }
+    }
+
+    function toggleAuthModes() {
+      switchAuthTab(state.authMode === 'login' ? 'register' : 'login');
+    }
+
+    async function handleAuthSubmit(event) {
+      event.preventDefault();
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+      const feedback = document.getElementById('auth-feedback-msg');
+      feedback.style.display = 'none';
+
+      if (!email || !password) return;
+
+      try {
+        if (state.storageMode === 'cloud') {
+          // Cloud auth utilizing Supabase Project auth module
+          if (state.authMode === 'login') {
+            const { data, error } = await state.supabaseClient.auth.signInWithPassword({
+              email: email,
+              password: password
+            });
+            if (error) throw error;
+            state.user = { id: data.user.id, email: data.user.email, username: data.user.email.split('@')[0] };
+          } else {
+            const { data, error } = await state.supabaseClient.auth.signUp({
+              email: email,
+              password: password
+            });
+            if (error) throw error;
+            if (data.user) {
+              alert('Registration initiated! Check your mail folder or sign in directly if verification is bypassable.');
+              state.user = { id: data.user.id, email: data.user.email, username: data.user.email.split('@')[0] };
+            }
+          }
+        } else {
+          // Local storage simulated auth module
+          const localUsers = JSON.parse(localStorage.getItem('spendorbit_local_users') || '{}');
+          const passHash = await sha256(password);
+          
+          if (state.authMode === 'login') {
+            if (!localUsers[email] || localUsers[email].hash !== passHash) {
+              throw new Error("Invalid stardate access permissions or security key.");
+            }
+            state.user = { id: email, email: email, username: email.split('@')[0] };
+          } else {
+            if (localUsers[email]) {
+              throw new Error("This email space cadet has already been registered.");
+            }
+            localUsers[email] = { hash: passHash };
+            localStorage.setItem('spendorbit_local_users', JSON.stringify(localUsers));
+            state.user = { id: email, email: email, username: email.split('@')[0] };
+          }
+        }
+
+        // Establish session and view
+        sessionStorage.setItem('spendorbit_session', JSON.stringify(state.user));
+        postAuthInit();
+
+      } catch (err) {
+        feedback.innerText = err.message;
+        feedback.style.display = 'block';
+      }
+    }
+
+    function checkActiveSession() {
+      const activeSession = sessionStorage.getItem('spendorbit_session');
+      if (activeSession) {
+        state.user = JSON.parse(activeSession);
+        postAuthInit();
+      } else {
+        navigateTo('landing');
+      }
+    }
+
+    function postAuthInit() {
+      // Set User visual identity elements
+      document.getElementById('avatar-initials').innerText = state.user.username.slice(0,2).toUpperCase();
+      document.getElementById('header-greeting').innerText = `Welcome back, Pilot ${state.user.username}`;
+      // Add these lines inside postAuthInit(), after the header-greeting line:
+document.getElementById('dropdown-username').innerText = state.user.username;
+document.getElementById('dropdown-email').innerText = state.user.email;
+document.getElementById('dropdown-storage-label').innerText = state.storageMode === 'cloud' ? 'Cloud Synced' : 'Local Offline';
+      // Update local view header icon
+      updateDbIndicatorUI();
+      navigateTo('dashboard-shell');
+    }
+
+    function logoutUser() {
+      if (state.storageMode === 'cloud' && state.supabaseClient) {
+        state.supabaseClient.auth.signOut();
+      }
+      sessionStorage.removeItem('spendorbit_session');
+      state.user = null;
+      state.expenses = [];
+      state.budgets = {};
+      navigateTo('landing');
+    }
+
+    // ==========================================
+    // DUAL-STORAGE ENGINE DATA ACCESS LAYER
+    // ==========================================
+    
+    function loadDbSettings() {
+      const savedMode = localStorage.getItem('spendorbit_storage_mode');
+      const savedUrl = localStorage.getItem('spendorbit_supabase_url');
+      const savedKey = localStorage.getItem('spendorbit_supabase_key');
+      
+      if (savedMode === 'cloud' && savedUrl && savedKey) {
+        state.supabaseUrl = savedUrl;
+        state.supabaseAnonKey = savedKey;
+        try {
+          state.supabaseClient = supabase.createClient(savedUrl, savedKey);
+          state.storageMode = 'cloud';
+        } catch (e) {
+          console.error("Supabase failed to initialize: ", e);
+          state.storageMode = 'local';
+        }
+      } else {
+        state.storageMode = 'local';
+      }
+    }
+
+    function updateDbIndicatorUI() {
+      const dbLabel = document.getElementById('db-indicator-label');
+      const badge = document.getElementById('db-indicator-badge');
+      if (state.storageMode === 'cloud') {
+        dbLabel.innerText = "Cloud Synced";
+        badge.style.color = "var(--accent-emerald)";
+        badge.style.borderColor = "rgba(0, 255, 170, 0.4)";
+        badge.style.background = "rgba(0, 255, 170, 0.1)";
+      } else {
+        dbLabel.innerText = "Local Offline";
+        badge.style.color = "var(--text-muted)";
+        badge.style.borderColor = "rgba(255, 255, 255, 0.15)";
+        badge.style.background = "rgba(255, 255, 255, 0.05)";
+      }
+    }
+
+    async function loadDataAndSyncDash() {
+      showLoadingCounters();
+      try {
+        await Promise.all([
+          syncExpenses(),
+          syncBudgets()
+        ]);
+        updateDashboardCounters();
+        triggerChartRenders();
+        renderRecentTransactions();
+
+        // Dynamic active subview updating
+        if (state.subview === 'history') {
+          renderHistoryTable();
+        } else if (state.subview === 'budgets') {
+          renderBudgetsPanel();
+        }
+      } catch (err) {
+        console.error("Critical dashboard data retrieval crash: ", err);
+      }
+    }
+
+    async function syncExpenses() {
+      if (state.storageMode === 'cloud' && state.supabaseClient) {
+        const { data, error } = await state.supabaseClient
+          .from('expenses')
+          .select('*')
+          .order('date', { ascending: false });
+        
+        if (error) throw error;
+        state.expenses = data || [];
+      } else {
+        const localData = localStorage.getItem(`spendorbit_expenses_${state.user.id}`);
+        state.expenses = localData ? JSON.parse(localData) : [];
+      }
+    }
+
+    async function syncBudgets() {
+      // Fetch user's limits
+      const fallbackBudgets = {
+        Food: 500, Transport: 200, Housing: 1200, Entertainment: 300,
+        Health: 150, Shopping: 400, Utilities: 250, Other: 200
+      };
+
+      if (state.storageMode === 'cloud' && state.supabaseClient) {
+        const { data, error } = await state.supabaseClient
+          .from('budgets')
+          .select('category, amount');
+        
+        if (error) throw error;
+        
+        state.budgets = { ...fallbackBudgets };
+        if (data && data.length > 0) {
+          data.forEach(b => {
+            state.budgets[b.category] = Number(b.amount);
+          });
+        }
+      } else {
+        const localData = localStorage.getItem(`spendorbit_budgets_${state.user.id}`);
+        state.budgets = localData ? JSON.parse(localData) : { ...fallbackBudgets };
+      }
+    }
+
+    function showLoadingCounters() {
+      document.getElementById('counter-total-spent').innerText = '---';
+      document.getElementById('counter-budget-remaining').innerText = '---';
+    }
+
+    // Recalculates core mathematical totals
+    function updateDashboardCounters() {
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+
+      // Total Spent this Month
+      const spentThisMonth = state.expenses
+        .filter(exp => {
+          const d = new Date(exp.date);
+          return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        })
+        .reduce((sum, exp) => sum + Number(exp.amount), 0);
+
+      // Total Budget configured this month
+      const totalBudgetLimit = Object.values(state.budgets).reduce((sum, amt) => sum + amt, 0);
+      const remainingBudget = totalBudgetLimit - spentThisMonth;
+      
+      // Animated count up for dashboard stats
+      animateNumberCounter('counter-total-spent', spentThisMonth);
+      animateNumberCounter('counter-budget-remaining', remainingBudget);
+
+      // Warning displays
+      const percentUsed = totalBudgetLimit > 0 ? (spentThisMonth / totalBudgetLimit) * 100 : 0;
+      const statusLabel = document.getElementById('dashboard-budget-status');
+      
+      if (percentUsed >= 100) {
+        statusLabel.innerText = "WARNING: Danger Limit Breached!";
+        statusLabel.style.color = "var(--accent-pink)";
+      } else if (percentUsed >= 85) {
+        statusLabel.innerText = "CAUTION: Gravity Orbit Decaying (85%+)";
+        statusLabel.style.color = "orange";
+      } else {
+        statusLabel.innerText = "Green Zone: Safe Orbit Stabilized";
+        statusLabel.style.color = "var(--accent-emerald)";
+      }
+    }
+
+    function animateNumberCounter(elementId, targetVal) {
+      const el = document.getElementById(elementId);
+      const start = 0;
+      const duration = 800; // ms
+      const startTime = performance.now();
+      
+      function updateNumber(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // Easing out quadratic
+        const easeVal = progress * (2 - progress);
+        const current = start + (targetVal - start) * easeVal;
+        
+        el.innerText = current.toFixed(2);
+        
+        if (progress < 1) {
+          requestAnimationFrame(updateNumber);
+        }
+      }
+      requestAnimationFrame(updateNumber);
+    }
+
+    function triggerChartRenders() {
+      renderDonutChart();
+      renderBarChart();
+      renderRemainingBudgetRing();
+    }
+
+    // ==========================================
+    // CUSTOM CANVAS CHART ENGINES
+    // ==========================================
+
+    // 1. Extruded 3D Donut Chart (Canvas Pseudo-3D Layering)
+    function renderDonutChart() {
+      const canvas = document.getElementById('canvas-donut');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Group totals
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      const monthlyExpenses = state.expenses.filter(exp => {
+        const d = new Date(exp.date);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      });
+
+      const catTotals = {};
+      Object.keys(CATEGORIES).forEach(c => catTotals[c] = 0);
+      monthlyExpenses.forEach(exp => {
+        if (catTotals[exp.category] !== undefined) {
+          catTotals[exp.category] += Number(exp.amount);
+        } else {
+          catTotals['Other'] += Number(exp.amount);
+        }
+      });
+
+      const totalSpent = Object.values(catTotals).reduce((sum, v) => sum + v, 0);
+      if (totalSpent === 0) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.font = '14px Exo 2';
+        ctx.textAlign = 'center';
+        ctx.fillText('No flight credit spent this month.', canvas.width/2, canvas.height/2);
+        return;
+      }
+
+      // Prepare slices
+      let angles = [];
+      let currentAngle = -Math.PI / 2; // Start from top
+      Object.keys(catTotals).forEach(cat => {
+        const val = catTotals[cat];
+        if (val > 0) {
+          const sliceAngle = (val / totalSpent) * Math.PI * 2;
+          angles.push({
+            category: cat,
+            color: CATEGORIES[cat].color,
+            start: currentAngle,
+            end: currentAngle + sliceAngle,
+            val: val
+          });
+          currentAngle += sliceAngle;
+        }
+      });
+
+      // Isometric tilt math offsets
+      const centerX = canvas.width / 2;
+      const centerY = (canvas.height / 2) - 8;
+      const radiusX = 85;
+      const radiusY = 55; // Tilted aspect ratio
+      const thickness = 14; // Height displacement
+
+      // Draw Cylindrical thickness slices from bottom layer up
+      for (let t = thickness; t > 0; t--) {
+        angles.forEach(a => {
+          ctx.beginPath();
+          // Draw bottom-shifted layer arcs
+          ctx.ellipse(centerX, centerY + t, radiusX, radiusY, 0, a.start, a.end);
+          ctx.lineTo(centerX + Math.cos(a.end) * (radiusX - 22), centerY + t + Math.sin(a.end) * (radiusY - 15));
+          ctx.ellipse(centerX, centerY + t, radiusX - 22, radiusY - 15, 0, a.end, a.start, true);
+          ctx.closePath();
+
+          // Darken colors for shadow walls
+          ctx.fillStyle = adjustColorBrightness(a.color, -45);
+          ctx.fill();
+        });
+      }
+
+      // Draw Top surfaces of the donut chart
+      angles.forEach(a => {
+        ctx.beginPath();
+        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, a.start, a.end);
+        ctx.lineTo(centerX + Math.cos(a.end) * (radiusX - 22), centerY + Math.sin(a.end) * (radiusY - 15));
+        ctx.ellipse(centerX, centerY, radiusX - 22, radiusY - 15, 0, a.end, a.start, true);
+        ctx.closePath();
+
+        ctx.fillStyle = a.color;
+        ctx.strokeStyle = '#050512';
+        ctx.lineWidth = 1.5;
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      // Overlay Category legend inside the donut hole
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY, radiusX - 22, radiusY - 15, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(15, 15, 42, 0.9)';
+      ctx.fill();
+
+      // Show dominant category
+      const maxCat = angles.reduce((prev, curr) => (prev.val > curr.val) ? prev : curr, { category: 'None', val: 0 });
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = '10px Orbitron';
+      ctx.fillText('PEAK DEPOT', centerX, centerY - 6);
+      ctx.fillStyle = maxCat.color || '#fff';
+      ctx.font = 'bold 12px Exo 2';
+      ctx.fillText(maxCat.category.toUpperCase(), centerX, centerY + 10);
+    }
+
+    // Color shader helper for pseudo 3D rendering
+    function adjustColorBrightness(hex, percent) {
+      let R = parseInt(hex.substring(1, 3), 16);
+      let G = parseInt(hex.substring(3, 5), 16);
+      let B = parseInt(hex.substring(5, 7), 16);
+
+      R = parseInt(R * (100 + percent) / 100);
+      G = parseInt(G * (100 + percent) / 100);
+      B = parseInt(B * (100 + percent) / 100);
+
+      R = (R < 255) ? R : 255;
+      G = (G < 255) ? G : 255;
+      B = (B < 255) ? B : 255;
+
+      const rHex = R.toString(16).padStart(2, '0');
+      const gHex = G.toString(16).padStart(2, '0');
+      const bHex = B.toString(16).padStart(2, '0');
+
+      return `#${rHex}${gHex}${bHex}`;
+    }
+
+    // 2. Monthly Comparison Bar Chart (Canvas-based)
+    function renderBarChart() {
+      const canvas = document.getElementById('canvas-bars');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Generate last 6 calendar months
+      const monthsData = [];
+      const d = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const targetMonth = new Date(d.getFullYear(), d.getMonth() - i, 1);
+        monthsData.push({
+          label: targetMonth.toLocaleString('default', { month: 'short' }),
+          month: targetMonth.getMonth(),
+          year: targetMonth.getFullYear(),
+          spent: 0
+        });
+      }
+
+      // Aggregate credit sums
+      state.expenses.forEach(exp => {
+        const ed = new Date(exp.date);
+        monthsData.forEach(m => {
+          if (ed.getMonth() === m.month && ed.getFullYear() === m.year) {
+            m.spent += Number(exp.amount);
+          }
+        });
+      });
+
+      const maxSpent = Math.max(...monthsData.map(m => m.spent), 100); // Floor at 100
+
+      // Chart Drawing Bounds
+      const paddingLeft = 35;
+      const paddingRight = 10;
+      const paddingTop = 20;
+      const paddingBottom = 30;
+      const graphWidth = canvas.width - paddingLeft - paddingRight;
+      const graphHeight = canvas.height - paddingTop - paddingBottom;
+
+      // Draw grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = paddingTop + (graphHeight * i / 4);
+        ctx.beginPath();
+        ctx.moveTo(paddingLeft, y);
+        ctx.lineTo(canvas.width - paddingRight, y);
+        ctx.stroke();
+
+        // Draw Y Axis Monospace labels
+        ctx.fillStyle = 'var(--text-muted)';
+        ctx.font = '8px Share Tech Mono';
+        ctx.textAlign = 'right';
+        const labelVal = maxSpent - (maxSpent * i / 4);
+        ctx.fillText(`$${Math.round(labelVal)}`, paddingLeft - 5, y + 3);
+      }
+
+      const barWidth = 24;
+      const gap = (graphWidth - (barWidth * 6)) / 5;
+
+      // Draw columns with rising height animations
+      monthsData.forEach((m, idx) => {
+        const x = paddingLeft + (idx * (barWidth + gap));
+        const finalBarHeight = (m.spent / maxSpent) * graphHeight;
+        
+        // Custom rising height anim loop
+        let currentHeight = 0;
+        function drawFrame() {
+          if (currentHeight < finalBarHeight) {
+            currentHeight += (finalBarHeight - currentHeight) * 0.15 + 0.5;
+            if (currentHeight > finalBarHeight) currentHeight = finalBarHeight;
+          }
+
+          const y = paddingTop + graphHeight - currentHeight;
+
+          // Clear column strip area before redraw
+          ctx.clearRect(x - 2, paddingTop - 5, barWidth + 4, graphHeight + 10);
+          
+          // Re-draw horizontal grid stripes within this column slice
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+          ctx.lineWidth = 1;
+          for (let i = 0; i <= 4; i++) {
+            const gy = paddingTop + (graphHeight * i / 4);
+            ctx.beginPath();
+            ctx.moveTo(x - 2, gy);
+            ctx.lineTo(x + barWidth + 2, gy);
+            ctx.stroke();
+          }
+
+          // Create Neon Glowing Bar styles
+          const gradient = ctx.createLinearGradient(x, y, x, paddingTop + graphHeight);
+          gradient.addColorStop(0, 'var(--accent-pink)');
+          gradient.addColorStop(1, 'var(--primary-violet)');
+          ctx.fillStyle = gradient;
+
+          // Round corner bars
+          ctx.beginPath();
+          ctx.roundRect(x, y, barWidth, currentHeight, [6, 6, 0, 0]);
+          ctx.fill();
+
+          // Render month name labels
+          ctx.fillStyle = 'var(--text-muted)';
+          ctx.font = '10px Exo 2';
+          ctx.textAlign = 'center';
+          ctx.fillText(m.label, x + barWidth/2, paddingTop + graphHeight + 15);
+
+          // Render amount values above column
+          if (m.spent > 0) {
+            ctx.fillStyle = '#fff';
+            ctx.font = '8px Share Tech Mono';
+            ctx.fillText(`$${Math.round(m.spent)}`, x + barWidth/2, y - 5);
+          }
+
+          if (currentHeight < finalBarHeight) {
+            requestAnimationFrame(drawFrame);
+          }
+        }
+        drawFrame();
+      });
+    }
+
+    // 3. Glowing Allocation progress ring (Canvas-based)
+    function renderRemainingBudgetRing() {
+      const canvas = document.getElementById('canvas-remaining-ring');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      const spentThisMonth = state.expenses
+        .filter(exp => {
+          const d = new Date(exp.date);
+          return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        })
+        .reduce((sum, exp) => sum + Number(exp.amount), 0);
+
+      const totalBudgetLimit = Object.values(state.budgets).reduce((sum, amt) => sum + amt, 0);
+      const percentUsed = totalBudgetLimit > 0 ? (spentThisMonth / totalBudgetLimit) * 100 : 0;
+      
+      const roundedPercent = Math.min(Math.round(percentUsed), 100);
+      document.getElementById('dashboard-budget-percent').innerText = roundedPercent;
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = 60;
+
+      // Draw background ring track
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.lineWidth = 10;
+      ctx.stroke();
+
+      // Draw indicator arc
+      const endAngle = (percentUsed / 100) * Math.PI * 2 - Math.PI / 2;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, -Math.PI / 2, Math.min(endAngle, Math.PI * 1.5));
+      
+      // Determine neon status colors
+      let strokeColor = 'var(--secondary-cyan)';
+      if (percentUsed >= 100) {
+        strokeColor = 'var(--accent-pink)';
+      } else if (percentUsed >= 85) {
+        strokeColor = '#eab308';
+      }
+
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 10;
+      ctx.lineCap = 'round';
+      
+      // Add heavy neon glow shadow
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = strokeColor;
+      ctx.stroke();
+      ctx.shadowBlur = 0; // reset
+    }
+
+    // ==========================================
+    // RECENT TRANSACTIONS FEED PANEL
+    // ==========================================
+    function renderRecentTransactions() {
+      const feed = document.getElementById('dashboard-recent-transactions');
+      feed.innerHTML = '';
+
+      const itemsToShow = state.expenses.slice(0, 4);
+
+      if (itemsToShow.length === 0) {
+        feed.innerHTML = '<div class="no-data-msg">No entries logged. Add an expense to start.</div>';
+        return;
+      }
+
+      itemsToShow.forEach(tx => {
+        const cat = CATEGORIES[tx.category] || CATEGORIES['Other'];
+        const itemHtml = `
+          <div class="transaction-item" id="tx-recent-${tx.id}">
+            <div class="tx-left">
+              <div class="tx-icon-box" style="color: ${cat.color}; background: rgba(${hexToRgb(cat.color)}, 0.12); border-color: rgba(${hexToRgb(cat.color)}, 0.25);">
+                ${cat.emoji}
+              </div>
+              <div class="tx-details">
+                <span class="tx-note">${tx.note}</span>
+                <span class="tx-meta">${tx.category} | ${new Date(tx.date).toLocaleDateString()}</span>
+              </div>
+            </div>
+            <div class="tx-right">
+              <span class="tx-amount negative mono">-$${Number(tx.amount).toFixed(2)}</span>
+              <button class="delete-tx-mini-btn" onclick="animateDeleteExpense('${tx.id}')">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+        `;
+        feed.insertAdjacentHTML('beforeend', itemHtml);
+      });
+    }
+
+    function hexToRgb(hex) {
+      const r = parseInt(hex.substring(1, 3), 16);
+      const g = parseInt(hex.substring(3, 5), 16);
+      const b = parseInt(hex.substring(5, 7), 16);
+      return `${r}, ${g}, ${b}`;
+    }
+
+    // ==========================================
+    // ADD/EDIT EXPENSE MODAL CONTROLLER
+    // ==========================================
+    function openExpenseModal(editId = null) {
+      document.getElementById('expense-form').reset();
+      document.getElementById('expense-id-edit').value = '';
+      
+      // Default inputs date field to today
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('expense-date').value = today;
+
+      const overlay = document.getElementById('expense-modal-overlay');
+      overlay.classList.add('active-modal');
+    }
+
+    function closeExpenseModal() {
+      const overlay = document.getElementById('expense-modal-overlay');
+      overlay.classList.remove('active-modal');
+    }
+
+    function closeExpenseModalOnOutsideClick(event) {
+      if (event.target.id === 'expense-modal-overlay') {
+        closeExpenseModal();
+      }
+    }
+
+    async function handleExpenseSubmit(event) {
+      event.preventDefault();
+
+      const amount = Number(document.getElementById('expense-amount').value);
+      const category = document.getElementById('expense-category').value;
+      const date = document.getElementById('expense-date').value;
+      const note = document.getElementById('expense-note').value.trim();
+
+      if (!amount || amount <= 0 || !note) return;
+
+      const item = {
+        amount,
+        category,
+        date,
+        note
+      };
+
+      try {
+        if (state.storageMode === 'cloud' && state.supabaseClient) {
+          // Save remotely to Supabase DB
+          const { error } = await state.supabaseClient
+            .from('expenses')
+            .insert([{ ...item, user_id: state.user.id }]);
+          console.log("state.user =", state.user);
+console.log("state.user.id =", state.user.id);
+          if (error) throw error;
+        } else {
+          // Save locally to localStorage
+          const localKey = `spendorbit_expenses_${state.user.id}`;
+          const current = JSON.parse(localStorage.getItem(localKey) || '[]');
+          
+          // Generate new UUID locally
+          const localItem = {
+            id: 'local_' + Math.random().toString(36).substring(2, 9) + Date.now(),
+            ...item
+          };
+          current.unshift(localItem);
+          localStorage.setItem(localKey, JSON.stringify(current));
+        }
+
+        closeExpenseModal();
+        loadDataAndSyncDash();
+
+      } catch (err) {
+        alert("Failed to register expense data in storage: " + err.message);
+      }
+    }
+
+    // Custom 3D flying deletion animation
+    function animateDeleteExpense(id) {
+      const row = document.getElementById(`tx-recent-${id}`) || document.getElementById(`tx-row-${id}`);
+      if (row) {
+        row.style.transition = 'all 0.5s cubic-bezier(0.6, -0.28, 0.735, 0.045)';
+        // Fly away into space depth Z and fade out
+        row.style.transform = 'perspective(1000px) translateZ(-400px) rotateX(45deg)';
+        row.style.opacity = '0';
+        row.style.height = '0';
+        row.style.padding = '0';
+        row.style.border = 'none';
+
+        setTimeout(() => {
+          deleteExpense(id);
+        }, 500);
+      } else {
+        deleteExpense(id);
+      }
+    }
+
+    async function deleteExpense(id) {
+      try {
+        if (state.storageMode === 'cloud' && state.supabaseClient) {
+          const { error } = await state.supabaseClient
+            .from('expenses')
+            .delete()
+            .eq('id', id);
+          if (error) throw error;
+        } else {
+          const localKey = `spendorbit_expenses_${state.user.id}`;
+          let current = JSON.parse(localStorage.getItem(localKey) || '[]');
+          current = current.filter(item => item.id !== id);
+          localStorage.setItem(localKey, JSON.stringify(current));
+        }
+
+        loadDataAndSyncDash();
+        if (state.subview === 'history') {
+          renderHistoryTable();
+        }
+
+      } catch (err) {
+        alert("Failed to delete flight expense entry: " + err.message);
+      }
+    }
+
+    // ==========================================
+    // TRANSACTION HISTORY TABLE SORT & FILTER
+    // ==========================================
+    
+    function populateMonthFilter() {
+      const monthSel = document.getElementById('filter-month');
+      monthSel.innerHTML = '<option value="ALL">All Planetary Cycles</option>';
+      
+      const dates = [...new Set(state.expenses.map(e => {
+        const d = new Date(e.date);
+        return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2, '0')}`;
+      }))];
+
+      dates.sort().reverse();
+      dates.forEach(dStr => {
+        const [yr, mo] = dStr.split('-');
+        const label = new Date(yr, mo - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+        monthSel.insertAdjacentHTML('beforeend', `<option value="${dStr}">${label}</option>`);
+      });
+    }
+
+    function sortTableBy(key) {
+      if (state.historySort.key === key) {
+        state.historySort.dir = state.historySort.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.historySort.key = key;
+        state.historySort.dir = 'desc'; // default new
+      }
+
+      // Reset header sort UI styles
+      document.querySelectorAll('.history-table th').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+      });
+
+      // Reset icons
+      document.getElementById('sort-icon-date').className = 'fa-solid fa-sort';
+      document.getElementById('sort-icon-note').className = 'fa-solid fa-sort';
+      document.getElementById('sort-icon-category').className = 'fa-solid fa-sort';
+      document.getElementById('sort-icon-amount').className = 'fa-solid fa-sort';
+
+      const activeHeader = document.querySelector(`.history-table th[onclick*="${key}"]`);
+      if (activeHeader) {
+        activeHeader.classList.add(state.historySort.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+        const iconEl = document.getElementById(`sort-icon-${key}`);
+        if (iconEl) {
+          iconEl.className = state.historySort.dir === 'asc' ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down';
+        }
+      }
+
+      renderHistoryTable();
+    }
+
+    function renderHistoryTable() {
+      const tbody = document.getElementById('history-table-body');
+      const emptyMsg = document.getElementById('history-empty-msg');
+      tbody.innerHTML = '';
+
+      const query = document.getElementById('search-tx').value.toLowerCase().trim();
+      const filterCat = document.getElementById('filter-category').value;
+      const filterMo = document.getElementById('filter-month').value;
+
+      // Filter array
+      let filtered = state.expenses.filter(tx => {
+        const d = new Date(tx.date);
+        const yyyymm = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2, '0')}`;
+        
+        const matchesQuery = tx.note.toLowerCase().includes(query) || tx.category.toLowerCase().includes(query);
+        const matchesCat = filterCat === 'ALL' || tx.category === filterCat;
+        const matchesMonth = filterMo === 'ALL' || yyyymm === filterMo;
+
+        return matchesQuery && matchesCat && matchesMonth;
+      });
+
+      // Sort array
+      const sk = state.historySort.key;
+      const sd = state.historySort.dir === 'asc' ? 1 : -1;
+      filtered.sort((a, b) => {
+        let valA = a[sk];
+        let valB = b[sk];
+
+        if (sk === 'amount') {
+          return (Number(valA) - Number(valB)) * sd;
+        }
+        if (sk === 'date') {
+          return (new Date(valA) - new Date(valB)) * sd;
+        }
+        return String(valA).localeCompare(String(valB)) * sd;
+      });
+
+      if (filtered.length === 0) {
+        emptyMsg.style.display = 'block';
+        return;
+      }
+      emptyMsg.style.display = 'none';
+
+      filtered.forEach(tx => {
+        const cat = CATEGORIES[tx.category] || CATEGORIES['Other'];
+        const row = `
+          <tr id="tx-row-${tx.id}">
+            <td class="mono">${new Date(tx.date).toLocaleDateString()}</td>
+            <td style="font-weight: 600;">${tx.note}</td>
+            <td>
+              <span class="table-category-badge" style="background: rgba(${hexToRgb(cat.color)}, 0.1); border: 1px solid rgba(${hexToRgb(cat.color)}, 0.25); color: ${cat.color};">
+                ${cat.emoji} ${tx.category}
+              </span>
+            </td>
+            <td style="text-align: right; font-weight: bold;" class="mono negative">-$${Number(tx.amount).toFixed(2)}</td>
+            <td style="text-align: center;">
+              <div class="action-btn-group" style="justify-content: center;">
+                <button class="table-action-btn delete" onclick="animateDeleteExpense('${tx.id}')" title="Deorbit Log">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', row);
+      });
+    }
+
+    // ==========================================
+    // BUDGET PLANNER MANAGER
+    // ==========================================
+    
+    function renderBudgetsPanel() {
+      const grid = document.getElementById('budget-grid-list');
+      grid.innerHTML = '';
+
+      let totalLimit = 0;
+
+      Object.keys(CATEGORIES).forEach(catName => {
+        const cat = CATEGORIES[catName];
+        const limit = state.budgets[catName] || 0;
+        totalLimit += limit;
+
+        // Sum spent for this category this month
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        const spent = state.expenses
+          .filter(e => e.category === catName)
+          .filter(e => {
+            const d = new Date(e.date);
+            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+          })
+          .reduce((sum, e) => sum + Number(e.amount), 0);
+
+        const percent = limit > 0 ? Math.round((spent / limit) * 100) : 0;
+        
+        let statusTag = '<span class="budget-status-tag ok">Stable</span>';
+        if (spent > limit) {
+          statusTag = '<span class="budget-status-tag over">Breached</span>';
+        } else if (percent >= 85) {
+          statusTag = '<span class="budget-status-tag warning">Warning</span>';
+        }
+
+        const cardHtml = `
+          <div class="budget-category-card glass-panel tilt-card">
+            <div>
+              <div class="budget-cat-top">
+                <div class="budget-cat-info">
+                  <div class="budget-cat-icon" style="background: rgba(${hexToRgb(cat.color)}, 0.15); border: 1px solid rgba(${hexToRgb(cat.color)}, 0.25); color: ${cat.color};">
+                    ${cat.emoji}
+                  </div>
+                  <span class="budget-cat-name">${catName}</span>
+                </div>
+                <button class="budget-limit-edit-btn" onclick="openBudgetEditModal('${catName}', ${limit})">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+              </div>
+
+              <div class="budget-progress-container">
+                <div class="budget-bar-track">
+                  <div class="budget-bar-fill" style="width: ${Math.min(percent, 100)}%; background: ${cat.color}; box-shadow: 0 0 10px ${cat.color};"></div>
+                </div>
+                <div class="budget-bar-text">
+                  <span>Usage: <strong>${percent}%</strong></span>
+                  <span class="mono">$${spent.toFixed(0)} / $${limit}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="budget-summary-stats">
+              <span style="color: var(--text-muted);">Sector Status:</span>
+              ${statusTag}
+            </div>
+          </div>
+        `;
+        grid.insertAdjacentHTML('beforeend', cardHtml);
+      });
+
+      document.getElementById('budget-sum-allocated').innerText = `$${totalLimit.toFixed(2)}`;
+    }
+
+    // Modal budget changes
+    function openBudgetEditModal(categoryName, currentLimit) {
+      document.getElementById('budget-modal-category-name').value = categoryName;
+      document.getElementById('budget-modal-category-title').innerText = `Adjust ${categoryName} Cap`;
+      document.getElementById('budget-modal-amount').value = currentLimit;
+
+      const overlay = document.getElementById('budget-modal-overlay');
+      overlay.classList.add('active-modal');
+    }
+
+    function closeBudgetModal() {
+      const overlay = document.getElementById('budget-modal-overlay');
+      overlay.classList.remove('active-modal');
+    }
+
+    function closeBudgetModalOnOutsideClick(event) {
+      if (event.target.id === 'budget-modal-overlay') {
+        closeBudgetModal();
+      }
+    }
+
+    async function handleBudgetSubmit(event) {
+      event.preventDefault();
+      const category = document.getElementById('budget-modal-category-name').value;
+      const amount = Number(document.getElementById('budget-modal-amount').value);
+
+      if (amount < 0) return;
+
+      try {
+        if (state.storageMode === 'cloud' && state.supabaseClient) {
+          // Insert or update on conflict for budgets
+          // First search if there's existing budget configuration row
+          const { data, error: fetchErr } = await state.supabaseClient
+            .from('budgets')
+            .select('id')
+            .eq('category', category)
+            .maybeSingle();
+
+          if (fetchErr) throw fetchErr;
+
+          if (data) {
+            // Update
+            const { error: updateErr } = await state.supabaseClient
+              .from('budgets')
+              .update({ amount: amount })
+              .eq('id', data.id);
+            if (updateErr) throw updateErr;
+          } else {
+            // Insert new config limit row
+            const { error: insertErr } = await state.supabaseClient
+              .from('budgets')
+              .insert([{ category, amount, user_id: state.user.id }]);
+            if (insertErr) throw insertErr;
+          }
+        } else {
+          // Local storage settings update
+          const localKey = `spendorbit_budgets_${state.user.id}`;
+          const current = JSON.parse(localStorage.getItem(localKey) || '{}');
+          current[category] = amount;
+          localStorage.setItem(localKey, JSON.stringify(current));
+        }
+
+        closeBudgetModal();
+        // Reload budgets panel data
+        syncBudgets().then(() => {
+          renderBudgetsPanel();
+        });
+
+      } catch (err) {
+        alert("Failed to save budget settings: " + err.message);
+      }
+    }
+
+    // ==========================================
+    // SETTINGS PANEL & SYNC OPERATIONS
+    // ==========================================
+    
+    function renderCloudSettings() {
+      document.getElementById('settings-db-url').value = state.supabaseUrl || '';
+      document.getElementById('settings-db-key').value = state.supabaseAnonKey || '';
+      
+      const statusBox = document.getElementById('settings-status-box');
+      const statusTitle = document.getElementById('settings-status-title');
+      const statusDesc = document.getElementById('settings-status-desc');
+      const disconnectBtn = document.getElementById('settings-db-disconnect');
+
+      document.getElementById('settings-feedback-msg').style.display = 'none';
+
+      if (state.storageMode === 'cloud') {
+        statusBox.className = "sync-status-indicator connected";
+        statusTitle.innerText = "Status: Cloud Synced (Supabase Active)";
+        statusDesc.innerText = "Real-time query routing to your remote database instance.";
+        disconnectBtn.style.display = 'inline-block';
+      } else {
+        statusBox.className = "sync-status-indicator disconnected";
+        statusTitle.innerText = "Status: Local Offline";
+        statusDesc.innerText = "Data stored strictly in browser localStorage.";
+        disconnectBtn.style.display = 'none';
+      }
+    }
+
+    async function handleSaveDbSettings(event) {
+      event.preventDefault();
+      const url = document.getElementById('settings-db-url').value.trim();
+      const key = document.getElementById('settings-db-key').value.trim();
+      const feedback = document.getElementById('settings-feedback-msg');
+      feedback.style.display = 'none';
+
+      if (!url || !key) return;
+
+      try {
+        // Test client connection
+        const client = supabase.createClient(url, key);
+        
+        // Attempt minor query call to test credentials validation
+        const { error } = await client.from('expenses').select('id').limit(1);
+        if (error && error.code !== 'PGRST116') { // Ignore empty rows match code, check auth or connection errors
+          throw new Error("Connection established but tables schema query failed. Have you run the SQL script setup? Details: " + error.message);
+        }
+
+        // Configuration succeeded
+        localStorage.setItem('spendorbit_supabase_url', url);
+        localStorage.setItem('spendorbit_supabase_key', key);
+        localStorage.setItem('spendorbit_storage_mode', 'cloud');
+        
+        state.supabaseUrl = url;
+        state.supabaseAnonKey = key;
+        state.supabaseClient = client;
+        state.storageMode = 'cloud';
+
+        updateDbIndicatorUI();
+        renderCloudSettings();
+
+        alert("Supabase cloud database linked successfully! Re-routing navigation storage engine.");
+
+      } catch (err) {
+        feedback.innerText = "Failed connection: " + err.message;
+        feedback.style.display = 'block';
+      }
+    }
+
+    function disconnectCloudDb() {
+      localStorage.removeItem('spendorbit_supabase_url');
+      localStorage.removeItem('spendorbit_supabase_key');
+      localStorage.setItem('spendorbit_storage_mode', 'local');
+
+      state.supabaseUrl = '';
+      state.supabaseAnonKey = '';
+      state.supabaseClient = null;
+      state.storageMode = 'local';
+
+      updateDbIndicatorUI();
+      renderCloudSettings();
+      alert("Switched storage pipeline to Offline/LocalStorage.");
+    }
+
+    function copySqlSchema() {
+      const code = document.getElementById('sql-schema-code').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        alert("SQL Schema copied to clipboard!");
+      }).catch(err => {
+        console.error("Clipboard copy failed: ", err);
+      });
+    }
+function toggleProfileDropdown() {
+  const menu = document.getElementById('profile-dropdown');
+  menu.classList.toggle('open');
+}
+
+function closeProfileDropdown() {
+  document.getElementById('profile-dropdown').classList.remove('open');
+}
+
+// Close dropdown if user clicks anywhere outside it
+document.addEventListener('click', function(e) {
+  const wrapper = document.querySelector('.profile-dropdown-wrapper');
+  if (wrapper && !wrapper.contains(e.target)) {
+    closeProfileDropdown();
+  }
+});
+  </script>
+</body>
+</html>
