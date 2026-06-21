@@ -479,8 +479,11 @@ function saveMonthlyIncome(amount) {
 function updateDashboardCounters() {
   const now = new Date();
   const cm = now.getMonth(), cy = now.getFullYear();
-  const spentThisMonth = state.expenses
-    .filter(exp => { const d = new Date(exp.date); return d.getMonth() === cm && d.getFullYear() === cy; })
+const spentThisMonth = state.expenses
+  .filter(exp => {
+    const [yr, mo] = exp.date.split('-').map(Number);
+    return (mo - 1) === cm && yr === cy;
+  })
     .reduce((sum, exp) => sum + Number(exp.amount), 0);
 
   // Income-based remaining: if income set, use it; else use total budgets
@@ -529,10 +532,10 @@ function renderDonutChart() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const now = new Date();
-  const monthlyExpenses = state.expenses.filter(exp => {
-    const d = new Date(exp.date);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  });
+ const monthlyExpenses = state.expenses.filter(exp => {
+  const [yr, mo] = exp.date.split('-').map(Number);
+  return (mo - 1) === now.getMonth() && yr === now.getFullYear();
+});
 
   const catTotals = {};
   Object.keys(CATEGORIES).forEach(c => catTotals[c] = 0);
@@ -675,8 +678,11 @@ function renderRemainingBudgetRing() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const now = new Date();
-  const spentThisMonth = state.expenses
-    .filter(exp => { const d = new Date(exp.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })
+const spentThisMonth = state.expenses
+  .filter(exp => {
+    const [yr, mo] = exp.date.split('-').map(Number);
+    return (mo - 1) === now.getMonth() && yr === now.getFullYear();
+  })
     .reduce((sum, exp) => sum + Number(exp.amount), 0);
 
   const base = state.monthlyIncome > 0 ? state.monthlyIncome : Object.values(state.budgets).reduce((s, a) => s + a, 0);
@@ -897,9 +903,9 @@ function populateMonthFilter() {
   if (!monthSel) return;
   monthSel.innerHTML = '<option value="ALL">All Months</option>';
   const dates = [...new Set(state.expenses.map(e => {
-    const d = new Date(e.date);
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-  }))].sort().reverse();
+  const [yr, mo] = e.date.split('-').map(Number);
+  return `${yr}-${mo.toString().padStart(2, '0')}`;
+}))].sort().reverse();
   dates.forEach(dStr => {
     const [yr, mo] = dStr.split('-');
     const label = new Date(yr, mo - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -933,12 +939,12 @@ function renderHistoryTable() {
   const filterMo = document.getElementById('filter-month')?.value || 'ALL';
 
   let filtered = state.expenses.filter(tx => {
-   const [yr, mo] = exp.date.split('-').map(Number);
-const yyyymm = `${yr}-${mo.toString().padStart(2, '0')}`;
-    return (tx.note.toLowerCase().includes(query) || tx.category.toLowerCase().includes(query)) &&
-      (filterCat === 'ALL' || tx.category === filterCat) &&
-      (filterMo === 'ALL' || yyyymm === filterMo);
-  });
+  const [yr, mo] = tx.date.split('-').map(Number);
+  const yyyymm = `${yr}-${mo.toString().padStart(2, '0')}`;
+  return (tx.note.toLowerCase().includes(query) || tx.category.toLowerCase().includes(query)) &&
+    (filterCat === 'ALL' || tx.category === filterCat) &&
+    (filterMo === 'ALL' || yyyymm === filterMo);
+});
 
   const sk = state.historySort.key, sd = state.historySort.dir === 'asc' ? 1 : -1;
   filtered.sort((a, b) => {
@@ -981,8 +987,10 @@ function renderBudgetsPanel() {
     totalLimit += limit;
     const spent = state.expenses
       .filter(e => e.category === catName)
-      .filter(e => { const d = new Date(e.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })
-      .reduce((sum, e) => sum + Number(e.amount), 0);
+.filter(e => {
+  const [yr, mo] = e.date.split('-').map(Number);
+  return (mo - 1) === now.getMonth() && yr === now.getFullYear();
+})      .reduce((sum, e) => sum + Number(e.amount), 0);
     const percent = limit > 0 ? Math.round((spent / limit) * 100) : 0;
     let statusTag = '<span class="budget-status-tag ok">Stable</span>';
     if (spent > limit && limit > 0) statusTag = '<span class="budget-status-tag over">Breached</span>';
