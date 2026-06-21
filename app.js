@@ -84,8 +84,11 @@ function navigateToView(subviewName) {
     if (mobNav) mobNav.classList.add('active');
 
     if (subviewName === 'dashboard') loadDataAndSyncDash();
-    else if (subviewName === 'history') { populateMonthFilter(); renderHistoryTable(); }
-    else if (subviewName === 'budgets') renderBudgetsPanel();
+else if (subviewName === 'history') {
+  populateMonthFilter();
+  renderMonthlySummaryCards(null);
+  renderHistoryTable();
+}    else if (subviewName === 'budgets') renderBudgetsPanel();
     else if (subviewName === 'settings') renderCloudSettings();
   }
 }
@@ -1126,4 +1129,79 @@ function showToast(message, type = 'info') {
   toast.textContent = message;
   container.appendChild(toast);
   setTimeout(() => toast.remove(), 3200);
+}
+// ==========================================
+// 17. MONTHLY SUMMARY CARDS
+// ==========================================
+function renderMonthlySummaryCards(selectedMonth = null) {
+  const container = document.getElementById('monthly-cards-row');
+  if (!container) return;
+  container.innerHTML = '';
+
+  // Group expenses by YYYY-MM
+  const monthMap = {};
+  state.expenses.forEach(exp => {
+    const d = new Date(exp.date);
+    const key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+    if (!monthMap[key]) monthMap[key] = { total: 0, count: 0 };
+    monthMap[key].total += Number(exp.amount);
+    monthMap[key].count += 1;
+  });
+
+  // Sort months newest first
+  const sortedMonths = Object.keys(monthMap).sort().reverse();
+
+  if (sortedMonths.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;font-style:italic;">No transactions recorded yet.</p>';
+    return;
+  }
+
+  // Find max total for bar scaling
+  const maxTotal = Math.max(...sortedMonths.map(k => monthMap[k].total));
+
+  sortedMonths.forEach(key => {
+    const [year, month] = key.split('-');
+    const label = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+    const { total, count } = monthMap[key];
+    const barWidth = maxTotal > 0 ? Math.round((total / maxTotal) * 100) : 0;
+    const isActive = selectedMonth === key;
+
+    const card = document.createElement('div');
+    card.className = `month-summary-card${isActive ? ' active-month-card' : ''}`;
+    card.id = `month-card-${key}`;
+    card.innerHTML = `
+      <div class="month-card-label">${label}</div>
+      <div class="month-card-amount">$${total.toFixed(2)}</div>
+      <div class="month-card-count">${count} transaction${count !== 1 ? 's' : ''}</div>
+      <div class="month-card-bar" style="width:${barWidth}%;"></div>
+    `;
+    card.addEventListener('click', () => onMonthCardClick(key));
+    container.appendChild(card);
+  });
+}
+
+function onMonthCardClick(monthKey) {
+  // If clicking the already active month, deselect (show all)
+  const filterMonthEl = document.getElementById('filter-month');
+  const currentVal = filterMonthEl?.value;
+
+  if (currentVal === monthKey) {
+    // Deselect — show all
+    if (filterMonthEl) filterMonthEl.value = 'ALL';
+    renderMonthlySummaryCards(null);
+    renderHistoryTable();
+    return;
+  }
+
+  // Set the month filter dropdown to match
+  if (filterMonthEl) filterMonthEl.value = monthKey;
+
+  // Re-render cards with active highlight
+  renderMonthlySummaryCards(monthKey);
+
+  // Re-render table filtered to this month
+  renderHistoryTable();
+
+  // Scroll to table smoothly
+  document.querySelector('.filter-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
