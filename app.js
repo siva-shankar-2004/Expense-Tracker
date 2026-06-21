@@ -352,7 +352,16 @@ function checkActiveSession() {
   }
 }
 
-function postAuthInit() {
+async function postAuthInit() {
+
+  // ✅ If cloud mode, refresh state.user.id with real Supabase UUID
+  if (state.storageMode === 'cloud' && state.supabaseClient) {
+    const { data: sessionData } = await state.supabaseClient.auth.getSession();
+    if (sessionData?.session?.user?.id) {
+      state.user.id = sessionData.session.user.id;
+    }
+  }
+
   const initials = (state.user.username || 'U').slice(0, 2).toUpperCase();
   document.getElementById('avatar-initials').innerText = initials;
   document.getElementById('header-greeting').innerText = `Welcome back, Pilot ${state.user.username}`;
@@ -760,9 +769,18 @@ async function handleExpenseSubmit(event) {
 
   try {
     if (state.storageMode === 'cloud' && state.supabaseClient) {
-// ✅ Let Supabase auth handle user_id via RLS
-const { error } = await state.supabaseClient.from('expenses')
-  .insert([{ amount, category, date, note }]);      if (error) throw error;
+
+      // ✅ Get the real Supabase UUID from the active session
+      const { data: sessionData } = await state.supabaseClient.auth.getSession();
+      const realUserId = sessionData?.session?.user?.id;
+
+      if (!realUserId) throw new Error('No active session. Please log out and log back in.');
+
+      const { error } = await state.supabaseClient.from('expenses')
+        .insert([{ amount, category, date, note, user_id: realUserId }]);
+
+      if (error) throw error;
+
     } else {
       const localKey = `spendorbit_expenses_${state.user.id}`;
       const current = JSON.parse(localStorage.getItem(localKey) || '[]');
@@ -976,15 +994,25 @@ async function handleBudgetSubmit(event) {
 
   try {
     if (state.storageMode === 'cloud' && state.supabaseClient) {
-      const { data, error: fetchErr } = await state.supabaseClient.from('budgets').select('id').eq('category', category).maybeSingle();
+
+      // ✅ Get real UUID from session
+      const { data: sessionData } = await state.supabaseClient.auth.getSession();
+      const realUserId = sessionData?.session?.user?.id;
+
+      if (!realUserId) throw new Error('No active session. Please log out and log back in.');
+
+      const { data, error: fetchErr } = await state.supabaseClient
+        .from('budgets').select('id').eq('category', category).maybeSingle();
       if (fetchErr) throw fetchErr;
+
       if (data) {
-        const { error } = await state.supabaseClient.from('budgets').update({ amount }).eq('id', data.id);
+        const { error } = await state.supabaseClient.from('budgets')
+          .update({ amount }).eq('id', data.id);
         if (error) throw error;
       } else {
-// ✅
-const { error } = await state.supabaseClient.from('budgets')
-  .insert([{ category, amount }]);        if (error) throw error;
+        const { error } = await state.supabaseClient.from('budgets')
+          .insert([{ category, amount, user_id: realUserId }]);
+        if (error) throw error;
       }
     } else {
       const localKey = `spendorbit_budgets_${state.user.id}`;
