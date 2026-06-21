@@ -760,8 +760,9 @@ async function handleExpenseSubmit(event) {
 
   try {
     if (state.storageMode === 'cloud' && state.supabaseClient) {
-      const { error } = await state.supabaseClient.from('expenses').insert([{ amount, category, date, note, user_id: state.user.id }]);
-      if (error) throw error;
+// ✅ Let Supabase auth handle user_id via RLS
+const { error } = await state.supabaseClient.from('expenses')
+  .insert([{ amount, category, date, note }]);      if (error) throw error;
     } else {
       const localKey = `spendorbit_expenses_${state.user.id}`;
       const current = JSON.parse(localStorage.getItem(localKey) || '[]');
@@ -981,8 +982,9 @@ async function handleBudgetSubmit(event) {
         const { error } = await state.supabaseClient.from('budgets').update({ amount }).eq('id', data.id);
         if (error) throw error;
       } else {
-        const { error } = await state.supabaseClient.from('budgets').insert([{ category, amount, user_id: state.user.id }]);
-        if (error) throw error;
+// ✅
+const { error } = await state.supabaseClient.from('budgets')
+  .insert([{ category, amount }]);        if (error) throw error;
       }
     } else {
       const localKey = `spendorbit_budgets_${state.user.id}`;
