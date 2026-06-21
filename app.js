@@ -772,27 +772,48 @@ async function handleExpenseSubmit(event) {
 
   try {
     if (state.storageMode === 'cloud' && state.supabaseClient) {
-
-      // ✅ Get the real Supabase UUID from the active session
       const { data: sessionData } = await state.supabaseClient.auth.getSession();
       const realUserId = sessionData?.session?.user?.id;
-
       if (!realUserId) throw new Error('No active session. Please log out and log back in.');
-
       const { error } = await state.supabaseClient.from('expenses')
         .insert([{ amount, category, date, note, user_id: realUserId }]);
-
       if (error) throw error;
-
     } else {
       const localKey = `spendorbit_expenses_${state.user.id}`;
       const current = JSON.parse(localStorage.getItem(localKey) || '[]');
-      current.unshift({ id: 'local_' + Math.random().toString(36).slice(2, 9) + Date.now(), amount, category, date, note });
+      current.unshift({
+        id: 'local_' + Math.random().toString(36).slice(2, 9) + Date.now(),
+        amount, category, date, note
+      });
       localStorage.setItem(localKey, JSON.stringify(current));
     }
+
     closeExpenseModal();
     showToast('Expense logged successfully!', 'success');
-    loadDataAndSyncDash();
+
+    // ✅ Reload all data first
+    await syncExpenses();
+
+    // ✅ Then refresh whichever view is currently active
+    if (state.subview === 'dashboard') {
+      updateDashboardCounters();
+      triggerChartRenders();
+      renderRecentTransactions();
+    } else if (state.subview === 'history') {
+      populateMonthFilter();
+      renderMonthlySummaryCards(null);
+      renderHistoryTable();
+    } else if (state.subview === 'budgets') {
+      renderBudgetsPanel();
+    }
+
+    // ✅ Always keep dashboard data fresh in background too
+    if (state.subview !== 'dashboard') {
+      updateDashboardCounters();
+      triggerChartRenders();
+      renderRecentTransactions();
+    }
+
   } catch (err) {
     showToast('Failed to save expense: ' + err.message, 'error');
   } finally {
@@ -823,9 +844,22 @@ async function deleteExpense(id) {
       current = current.filter(item => item.id !== id);
       localStorage.setItem(localKey, JSON.stringify(current));
     }
+
     showToast('Expense deleted.', 'info');
-    loadDataAndSyncDash();
-    if (state.subview === 'history') renderHistoryTable();
+
+    // ✅ Reload data then refresh all active views
+    await syncExpenses();
+
+    if (state.subview === 'history') {
+      populateMonthFilter();
+      renderMonthlySummaryCards(null);
+      renderHistoryTable();
+    }
+
+    updateDashboardCounters();
+    triggerChartRenders();
+    renderRecentTransactions();
+
   } catch (err) {
     showToast('Failed to delete: ' + err.message, 'error');
   }
@@ -899,8 +933,8 @@ function renderHistoryTable() {
   const filterMo = document.getElementById('filter-month')?.value || 'ALL';
 
   let filtered = state.expenses.filter(tx => {
-    const d = new Date(tx.date);
-    const yyyymm = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+   const [yr, mo] = exp.date.split('-').map(Number);
+const yyyymm = `${yr}-${mo.toString().padStart(2, '0')}`;
     return (tx.note.toLowerCase().includes(query) || tx.category.toLowerCase().includes(query)) &&
       (filterCat === 'ALL' || tx.category === filterCat) &&
       (filterMo === 'ALL' || yyyymm === filterMo);
@@ -1141,7 +1175,9 @@ function renderMonthlySummaryCards(selectedMonth = null) {
   // Group expenses by YYYY-MM
   const monthMap = {};
   state.expenses.forEach(exp => {
-    const d = new Date(exp.date);
+    // ✅ Parse date parts directly to avoid timezone shift
+const [year, month, day] = exp.date.split('-').map(Number);
+const d = new Date(year, month - 1, day);
     const key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
     if (!monthMap[key]) monthMap[key] = { total: 0, count: 0 };
     monthMap[key].total += Number(exp.amount);
