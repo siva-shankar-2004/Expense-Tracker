@@ -86,7 +86,12 @@ function navigateToView(subviewName) {
     if (subviewName === 'dashboard') loadDataAndSyncDash();
 else if (subviewName === 'history') {
   populateMonthFilter();
-  renderMonthlySummaryCards(null);
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  // Set dropdown to current month by default
+  const filterMonthEl = document.getElementById('filter-month');
+  if (filterMonthEl) filterMonthEl.value = currentMonthKey;
+  renderMonthlySummaryCards(currentMonthKey);
   renderHistoryTable();
 }    else if (subviewName === 'budgets') renderBudgetsPanel();
     else if (subviewName === 'settings') renderCloudSettings();
@@ -805,11 +810,15 @@ async function handleExpenseSubmit(event) {
       updateDashboardCounters();
       triggerChartRenders();
       renderRecentTransactions();
-    } else if (state.subview === 'history') {
-      populateMonthFilter();
-      renderMonthlySummaryCards(null);
-      renderHistoryTable();
-    } else if (state.subview === 'budgets') {
+  } else if (state.subview === 'history') {
+  populateMonthFilter();
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  const filterMonthEl = document.getElementById('filter-month');
+  const activeMonth = filterMonthEl?.value || currentMonthKey;
+  renderMonthlySummaryCards(activeMonth);
+  renderHistoryTable();
+} else if (state.subview === 'budgets') {
       renderBudgetsPanel();
     }
 
@@ -856,11 +865,13 @@ async function deleteExpense(id) {
     // ✅ Reload data then refresh all active views
     await syncExpenses();
 
-    if (state.subview === 'history') {
-      populateMonthFilter();
-      renderMonthlySummaryCards(null);
-      renderHistoryTable();
-    }
+if (state.subview === 'history') {
+  populateMonthFilter();
+  const filterMonthEl = document.getElementById('filter-month');
+  const activeMonth = filterMonthEl?.value || 'ALL';
+  renderMonthlySummaryCards(activeMonth);
+  renderHistoryTable();
+}
 
     updateDashboardCounters();
     triggerChartRenders();
@@ -1225,17 +1236,18 @@ const d = new Date(year, month - 1, day);
 }
 
 function onMonthCardClick(monthKey) {
-  // If clicking the already active month, deselect (show all)
   const filterMonthEl = document.getElementById('filter-month');
   const currentVal = filterMonthEl?.value;
 
-  if (currentVal === monthKey) {
-    // Deselect — show all
-    if (filterMonthEl) filterMonthEl.value = 'ALL';
-    renderMonthlySummaryCards(null);
-    renderHistoryTable();
-    return;
-  }
+  // If clicking same active card, do nothing (stay on that month)
+  if (currentVal === monthKey) return;
+
+  // Switch to clicked month
+  if (filterMonthEl) filterMonthEl.value = monthKey;
+  renderMonthlySummaryCards(monthKey);
+  renderHistoryTable();
+  document.querySelector('.filter-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
   // Set the month filter dropdown to match
   if (filterMonthEl) filterMonthEl.value = monthKey;
