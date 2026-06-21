@@ -352,6 +352,14 @@
 
           <!-- ======= TRANSACTION HISTORY ======= -->
           <div id="subview-history" class="subview-panel" style="display:none;">
+            <!-- Monthly Expense Summary Cards -->
+<div id="monthly-summary-section" style="margin-bottom:2rem;">
+  <h3 class="orbitron-title" style="font-size:0.95rem;margin-bottom:1rem;letter-spacing:2px;">
+    <i class="fa-solid fa-calendar-check" style="color:var(--secondary-cyan);margin-right:8px;"></i>
+    Monthly Mission Log
+  </h3>
+  <div id="monthly-cards-row" style="display:flex;gap:1rem;flex-wrap:wrap;"></div>
+</div>
             <div class="filter-panel">
               <div class="search-input-wrapper">
                 <input type="text" id="search-tx" class="filter-search" placeholder="Search notes or categories..." oninput="renderHistoryTable()">
