@@ -83,18 +83,21 @@ function navigateToView(subviewName) {
     const mobNav = document.getElementById(`mobile-nav-${subviewName}`);
     if (mobNav) mobNav.classList.add('active');
 
-    if (subviewName === 'dashboard') loadDataAndSyncDash();
-else if (subviewName === 'history') {
-  populateMonthFilter();
-  const now = new Date();
-  const currentMonthKey = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-  // Set dropdown to current month by default
-  const filterMonthEl = document.getElementById('filter-month');
-  if (filterMonthEl) filterMonthEl.value = currentMonthKey;
-  renderMonthlySummaryCards(currentMonthKey);
-  renderHistoryTable();
-}    else if (subviewName === 'budgets') renderBudgetsPanel();
-    else if (subviewName === 'settings') renderCloudSettings();
+    if (subviewName === 'dashboard') {
+      loadDataAndSyncDash();
+    } else if (subviewName === 'history') {
+      populateMonthFilter();
+      const now = new Date();
+      const currentMonthKey = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+      const filterMonthEl = document.getElementById('filter-month');
+      if (filterMonthEl) filterMonthEl.value = currentMonthKey;
+      renderMonthlySummaryCards(currentMonthKey);
+      renderHistoryTable();
+    } else if (subviewName === 'budgets') {
+      renderBudgetsPanel();
+    } else if (subviewName === 'settings') {
+      renderCloudSettings();
+    }
   }
 }
 
@@ -118,12 +121,14 @@ function initStarfield() {
   }
   animateStars();
 }
+
 function resizeStarfieldCanvas() {
   const canvas = document.getElementById('starfield-canvas');
   if (!canvas) return;
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 }
+
 function animateStars() {
   const canvas = document.getElementById('starfield-canvas');
   if (!canvas) return;
@@ -134,8 +139,14 @@ function animateStars() {
     if (s.y > canvas.height) { s.y = 0; s.x = Math.random() * canvas.width; }
     ctx.beginPath();
     ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-    if (s.glow) { ctx.fillStyle = `rgba(0, 245, 255, ${s.alpha})`; ctx.shadowBlur = 6; ctx.shadowColor = '#00f5ff'; }
-    else { ctx.fillStyle = `rgba(240, 240, 255, ${s.alpha})`; ctx.shadowBlur = 0; }
+    if (s.glow) {
+      ctx.fillStyle = `rgba(0, 245, 255, ${s.alpha})`;
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = '#00f5ff';
+    } else {
+      ctx.fillStyle = `rgba(240, 240, 255, ${s.alpha})`;
+      ctx.shadowBlur = 0;
+    }
     ctx.fill();
     s.alpha += (Math.random() > 0.5 ? 0.02 : -0.02);
     if (s.alpha > 1) s.alpha = 1;
@@ -152,7 +163,8 @@ function initCardTilt() {
   document.addEventListener('mousemove', (e) => {
     document.querySelectorAll('.tilt-card').forEach(card => {
       const rect = card.getBoundingClientRect();
-      if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+      if (e.clientX >= rect.left && e.clientX <= rect.right &&
+          e.clientY >= rect.top && e.clientY <= rect.bottom) {
         const rY = ((e.clientX - rect.left - rect.width / 2) / (rect.width / 2)) * 7;
         const rX = -((e.clientY - rect.top - rect.height / 2) / (rect.height / 2)) * 7;
         card.style.transform = `perspective(1000px) rotateX(${rX}deg) rotateY(${rY}deg) translateZ(10px)`;
@@ -167,7 +179,6 @@ function initCardTilt() {
 // 6. AUTH SYSTEM — USERNAME BASED
 // ==========================================
 
-// SHA-256 for local password hashing
 async function sha256(message) {
   const msgBuffer = new TextEncoder().encode(message);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -193,14 +204,16 @@ function switchAuthTab(mode) {
     tLogin.classList.add('active-tab'); tReg.classList.remove('active-tab');
     title.innerText = 'Access Dashboard';
     label.innerText = 'Enter Orbit';
-    hintDesc.innerText = "Don't have an account?"; hintBtn.innerText = 'Sign up';
+    hintDesc.innerText = "Don't have an account?";
+    hintBtn.innerText = 'Sign up';
     regFields.style.display = 'none';
     forgotLink.style.display = 'block';
   } else {
     tReg.classList.add('active-tab'); tLogin.classList.remove('active-tab');
     title.innerText = 'Register Flight Officer';
     label.innerText = 'Establish Comms';
-    hintDesc.innerText = 'Already registered?'; hintBtn.innerText = 'Login';
+    hintDesc.innerText = 'Already registered?';
+    hintBtn.innerText = 'Login';
     regFields.style.display = 'block';
     forgotLink.style.display = 'none';
   }
@@ -212,6 +225,7 @@ function toggleAuthModes() {
 
 function showAuthFeedback(msg, type = 'error') {
   const el = document.getElementById('auth-feedback-msg');
+  if (!el) return;
   el.textContent = msg;
   el.className = `auth-feedback ${type}`;
   el.style.display = 'block';
@@ -219,7 +233,21 @@ function showAuthFeedback(msg, type = 'error') {
 
 function clearAuthFeedback() {
   const el = document.getElementById('auth-feedback-msg');
-  el.style.display = 'none'; el.textContent = '';
+  if (el) { el.style.display = 'none'; el.textContent = ''; }
+}
+
+// ✅ Separate feedback for reset panel
+function showResetFeedback(msg, type = 'error') {
+  const el = document.getElementById('auth-feedback-msg-reset');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = `auth-feedback ${type}`;
+  el.style.display = 'block';
+}
+
+function clearResetFeedback() {
+  const el = document.getElementById('auth-feedback-msg-reset');
+  if (el) { el.style.display = 'none'; el.textContent = ''; }
 }
 
 async function handleAuthSubmit(event) {
@@ -228,7 +256,6 @@ async function handleAuthSubmit(event) {
 
   const username = document.getElementById('auth-username').value.trim();
   const password = document.getElementById('auth-password').value;
-
   if (!username || !password) return;
 
   const submitBtn = document.getElementById('auth-submit-btn');
@@ -237,7 +264,6 @@ async function handleAuthSubmit(event) {
 
   try {
     if (state.storageMode === 'cloud') {
-      // Cloud mode: username maps to supabase email field (stored as username@spendorbit.local)
       const fakeEmail = username.toLowerCase().replace(/\s+/g, '_') + '@spendorbit.local';
       if (state.authMode === 'login') {
         const { data, error } = await state.supabaseClient.auth.signInWithPassword({ email: fakeEmail, password });
@@ -264,7 +290,6 @@ async function handleAuthSubmit(event) {
         }
       }
     } else {
-      // Local storage auth
       const localUsers = JSON.parse(localStorage.getItem('spendorbit_local_users') || '{}');
       const usernameKey = username.toLowerCase();
       const passHash = await sha256(password);
@@ -295,38 +320,48 @@ async function handleAuthSubmit(event) {
   }
 }
 
-// Password Reset (local mode: simulate sending email by showing the stored recovery email)
+// ✅ Fixed showForgotPassword — clears both feedback panels
 function showForgotPassword() {
   document.getElementById('main-auth-panel').style.display = 'none';
   document.getElementById('reset-pw-panel').style.display = 'block';
   clearAuthFeedback();
+  clearResetFeedback();
 }
+
+// ✅ Fixed hideForgotPassword — clears reset feedback too
 function hideForgotPassword() {
   document.getElementById('reset-pw-panel').style.display = 'none';
   document.getElementById('main-auth-panel').style.display = 'block';
-  clearAuthFeedback();
+  clearResetFeedback();
 }
 
+// ✅ Fixed handlePasswordReset — uses showResetFeedback instead of showAuthFeedback
 async function handlePasswordReset(event) {
   event.preventDefault();
-  clearAuthFeedback();
+  clearResetFeedback();
+
   const username = document.getElementById('reset-username').value.trim();
   const newPassword = document.getElementById('reset-new-password').value;
   const confirmPassword = document.getElementById('reset-confirm-password').value;
 
   if (!username || !newPassword || !confirmPassword) return;
-  if (newPassword !== confirmPassword) { showAuthFeedback('Passwords do not match.'); return; }
-  if (newPassword.length < 6) { showAuthFeedback('Password must be at least 6 characters.'); return; }
+  if (newPassword !== confirmPassword) {
+    showResetFeedback('Passwords do not match.');
+    return;
+  }
+  if (newPassword.length < 6) {
+    showResetFeedback('Password must be at least 6 characters.');
+    return;
+  }
 
   if (state.storageMode === 'cloud') {
-    // In cloud mode, look up the fake email and send reset via supabase
     const fakeEmail = username.toLowerCase().replace(/\s+/g, '_') + '@spendorbit.local';
     try {
       const { error } = await state.supabaseClient.auth.resetPasswordForEmail(fakeEmail);
       if (error) throw error;
-      showAuthFeedback('Password reset email sent! Check the recovery email you registered with.', 'success');
+      showResetFeedback('Password reset email sent! Check the recovery email you registered with.', 'success');
     } catch (err) {
-      showAuthFeedback('Could not send reset email. Make sure your username is correct.');
+      showResetFeedback('Could not send reset email. Make sure your username is correct.');
     }
     return;
   }
@@ -334,19 +369,20 @@ async function handlePasswordReset(event) {
   // Local mode: direct password reset
   const localUsers = JSON.parse(localStorage.getItem('spendorbit_local_users') || '{}');
   const usernameKey = username.toLowerCase();
-  if (!localUsers[usernameKey]) { showAuthFeedback('Username not found.'); return; }
-
-  const recoveryEmail = localUsers[usernameKey].recoveryEmail;
-  if (!recoveryEmail) {
-    showAuthFeedback('No recovery email on file for this account. Password reset unavailable.');
+  if (!localUsers[usernameKey]) {
+    showResetFeedback('Username not found.');
     return;
   }
 
-  // Update the hash
+  const recoveryEmail = localUsers[usernameKey].recoveryEmail;
+  if (!recoveryEmail) {
+    showResetFeedback('No recovery email on file for this account. Password reset unavailable.');
+    return;
+  }
+
   localUsers[usernameKey].hash = await sha256(newPassword);
   localStorage.setItem('spendorbit_local_users', JSON.stringify(localUsers));
-
-  showAuthFeedback(`Password updated! Recovery email on file: ${recoveryEmail}`, 'success');
+  showResetFeedback(`Password updated! Recovery email on file: ${recoveryEmail}`, 'success');
   setTimeout(() => { hideForgotPassword(); }, 2500);
 }
 
@@ -361,8 +397,6 @@ function checkActiveSession() {
 }
 
 async function postAuthInit() {
-
-  // ✅ If cloud mode, refresh state.user.id with real Supabase UUID
   if (state.storageMode === 'cloud' && state.supabaseClient) {
     const { data: sessionData } = await state.supabaseClient.auth.getSession();
     if (sessionData?.session?.user?.id) {
@@ -385,7 +419,10 @@ function logoutUser() {
     state.supabaseClient.auth.signOut();
   }
   sessionStorage.removeItem('spendorbit_session');
-  state.user = null; state.expenses = []; state.budgets = {}; state.monthlyIncome = 0;
+  state.user = null;
+  state.expenses = [];
+  state.budgets = {};
+  state.monthlyIncome = 0;
   navigateTo('landing');
 }
 
@@ -398,11 +435,14 @@ function loadDbSettings() {
   const savedKey = localStorage.getItem('spendorbit_supabase_key');
 
   if (savedMode === 'cloud' && savedUrl && savedKey) {
-    state.supabaseUrl = savedUrl; state.supabaseAnonKey = savedKey;
+    state.supabaseUrl = savedUrl;
+    state.supabaseAnonKey = savedKey;
     try {
       state.supabaseClient = supabase.createClient(savedUrl, savedKey);
       state.storageMode = 'cloud';
-    } catch (e) { state.storageMode = 'local'; }
+    } catch (e) {
+      state.storageMode = 'local';
+    }
   } else {
     state.storageMode = 'local';
   }
@@ -423,7 +463,6 @@ function updateDbIndicatorUI() {
     badge.style.borderColor = 'rgba(255,255,255,0.15)';
     badge.style.background = 'rgba(255,255,255,0.05)';
   }
-  // Update dropdown badge too
   const storageLabel = document.getElementById('dropdown-storage-label');
   if (storageLabel) storageLabel.innerText = state.storageMode === 'cloud' ? 'Cloud Synced' : 'Local Offline';
 }
@@ -434,18 +473,20 @@ async function loadDataAndSyncDash() {
     updateDashboardCounters();
     triggerChartRenders();
     renderRecentTransactions();
-  } catch (err) { console.error('Dashboard data load error:', err); }
+  } catch (err) {
+    console.error('Dashboard data load error:', err);
+  }
 }
 
 async function syncExpenses() {
   if (state.storageMode === 'cloud' && state.supabaseClient) {
-    const { data, error } = await state.supabaseClient.from('expenses').select('*').order('date', { ascending: false });
+    const { data, error } = await state.supabaseClient
+      .from('expenses').select('*').order('date', { ascending: false });
     if (error) throw error;
     state.expenses = data || [];
   } else {
     const localData = localStorage.getItem(`spendorbit_expenses_${state.user.id}`);
     state.expenses = localData ? JSON.parse(localData) : [];
-    // Sort descending by date
     state.expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
   }
 }
@@ -484,15 +525,16 @@ function saveMonthlyIncome(amount) {
 function updateDashboardCounters() {
   const now = new Date();
   const cm = now.getMonth(), cy = now.getFullYear();
-const spentThisMonth = state.expenses
-  .filter(exp => {
-    const [yr, mo] = exp.date.split('-').map(Number);
-    return (mo - 1) === cm && yr === cy;
-  })
+  const spentThisMonth = state.expenses
+    .filter(exp => {
+      const [yr, mo] = exp.date.split('-').map(Number);
+      return (mo - 1) === cm && yr === cy;
+    })
     .reduce((sum, exp) => sum + Number(exp.amount), 0);
 
-  // Income-based remaining: if income set, use it; else use total budgets
-  const baseBudget = state.monthlyIncome > 0 ? state.monthlyIncome : Object.values(state.budgets).reduce((s, a) => s + a, 0);
+  const baseBudget = state.monthlyIncome > 0
+    ? state.monthlyIncome
+    : Object.values(state.budgets).reduce((s, a) => s + a, 0);
   const remaining = baseBudget - spentThisMonth;
   const percentUsed = baseBudget > 0 ? (spentThisMonth / baseBudget) * 100 : 0;
 
@@ -502,11 +544,14 @@ const spentThisMonth = state.expenses
 
   const statusLabel = document.getElementById('dashboard-budget-status');
   if (percentUsed >= 100) {
-    statusLabel.innerText = 'WARNING: Over budget this month!'; statusLabel.style.color = 'var(--accent-pink)';
+    statusLabel.innerText = 'WARNING: Over budget this month!';
+    statusLabel.style.color = 'var(--accent-pink)';
   } else if (percentUsed >= 85) {
-    statusLabel.innerText = 'CAUTION: Approaching budget limit (85%+)'; statusLabel.style.color = 'orange';
+    statusLabel.innerText = 'CAUTION: Approaching budget limit (85%+)';
+    statusLabel.style.color = 'orange';
   } else {
-    statusLabel.innerText = 'Green Zone: Safe Orbit Stabilized'; statusLabel.style.color = 'var(--accent-emerald)';
+    statusLabel.innerText = 'Green Zone: Safe Orbit Stabilized';
+    statusLabel.style.color = 'var(--accent-emerald)';
   }
 }
 
@@ -537,10 +582,10 @@ function renderDonutChart() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const now = new Date();
- const monthlyExpenses = state.expenses.filter(exp => {
-  const [yr, mo] = exp.date.split('-').map(Number);
-  return (mo - 1) === now.getMonth() && yr === now.getFullYear();
-});
+  const monthlyExpenses = state.expenses.filter(exp => {
+    const [yr, mo] = exp.date.split('-').map(Number);
+    return (mo - 1) === now.getMonth() && yr === now.getFullYear();
+  });
 
   const catTotals = {};
   Object.keys(CATEGORIES).forEach(c => catTotals[c] = 0);
@@ -551,8 +596,11 @@ function renderDonutChart() {
 
   const totalSpent = Object.values(catTotals).reduce((s, v) => s + v, 0);
   if (totalSpent === 0) {
-    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '13px Exo 2'; ctx.textAlign = 'center';
-    ctx.fillText('No expenses logged this month.', canvas.width / 2, canvas.height / 2); return;
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.font = '13px Exo 2';
+    ctx.textAlign = 'center';
+    ctx.fillText('No expenses logged this month.', canvas.width / 2, canvas.height / 2);
+    return;
   }
 
   let currentAngle = -Math.PI / 2;
@@ -587,19 +635,25 @@ function renderDonutChart() {
     ctx.lineTo(cx + Math.cos(a.end) * (rx - 22), cy + Math.sin(a.end) * (ry - 15));
     ctx.ellipse(cx, cy, rx - 22, ry - 15, 0, a.end, a.start, true);
     ctx.closePath();
-    ctx.fillStyle = a.color; ctx.strokeStyle = '#050512'; ctx.lineWidth = 1.5;
-    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = a.color;
+    ctx.strokeStyle = '#050512';
+    ctx.lineWidth = 1.5;
+    ctx.fill();
+    ctx.stroke();
   });
 
   ctx.beginPath();
   ctx.ellipse(cx, cy, rx - 22, ry - 15, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(15,15,42,0.9)'; ctx.fill();
+  ctx.fillStyle = 'rgba(15,15,42,0.9)';
+  ctx.fill();
 
   const maxCat = angles.reduce((p, c) => p.val > c.val ? p : c, { category: 'None', val: 0 });
   ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '9px Orbitron';
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = '9px Orbitron';
   ctx.fillText('TOP SPEND', cx, cy - 5);
-  ctx.fillStyle = maxCat.color || '#fff'; ctx.font = 'bold 11px Exo 2';
+  ctx.fillStyle = maxCat.color || '#fff';
+  ctx.font = 'bold 11px Exo 2';
   ctx.fillText(maxCat.category.toUpperCase(), cx, cy + 9);
 }
 
@@ -624,22 +678,33 @@ function renderBarChart() {
   const monthsData = [];
   for (let i = 5; i >= 0; i--) {
     const t = new Date(d.getFullYear(), d.getMonth() - i, 1);
-    monthsData.push({ label: t.toLocaleString('default', { month: 'short' }), month: t.getMonth(), year: t.getFullYear(), spent: 0 });
+    monthsData.push({
+      label: t.toLocaleString('default', { month: 'short' }),
+      month: t.getMonth(),
+      year: t.getFullYear(),
+      spent: 0
+    });
   }
+
   state.expenses.forEach(exp => {
-    const ed = new Date(exp.date);
-    monthsData.forEach(m => { if (ed.getMonth() === m.month && ed.getFullYear() === m.year) m.spent += Number(exp.amount); });
+    const [yr, mo] = exp.date.split('-').map(Number);
+    monthsData.forEach(m => {
+      if ((mo - 1) === m.month && yr === m.year) m.spent += Number(exp.amount);
+    });
   });
 
   const maxSpent = Math.max(...monthsData.map(m => m.spent), 100);
   const pL = 38, pR = 10, pT = 18, pB = 28;
   const gW = canvas.width - pL - pR, gH = canvas.height - pT - pB;
 
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
     const y = pT + (gH * i / 4);
     ctx.beginPath(); ctx.moveTo(pL, y); ctx.lineTo(canvas.width - pR, y); ctx.stroke();
-    ctx.fillStyle = 'rgba(138,138,176,0.8)'; ctx.font = '8px Share Tech Mono'; ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(138,138,176,0.8)';
+    ctx.font = '8px Share Tech Mono';
+    ctx.textAlign = 'right';
     ctx.fillText(`$${Math.round(maxSpent - (maxSpent * i / 4))}`, pL - 4, y + 3);
   }
 
@@ -657,18 +722,28 @@ function renderBarChart() {
       }
       const y = pT + gH - currentHeight;
       ctx.clearRect(x - 2, pT - 5, barWidth + 4, gH + 10);
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 1;
       for (let i = 0; i <= 4; i++) {
         const gy = pT + (gH * i / 4);
         ctx.beginPath(); ctx.moveTo(x - 2, gy); ctx.lineTo(x + barWidth + 2, gy); ctx.stroke();
       }
       const grad = ctx.createLinearGradient(x, y, x, pT + gH);
-      grad.addColorStop(0, '#ff006e'); grad.addColorStop(1, '#7c3aed');
+      grad.addColorStop(0, '#ff006e');
+      grad.addColorStop(1, '#7c3aed');
       ctx.fillStyle = grad;
-      ctx.beginPath(); ctx.roundRect(x, y, barWidth, Math.max(currentHeight, 0), [5, 5, 0, 0]); ctx.fill();
-      ctx.fillStyle = 'rgba(138,138,176,0.8)'; ctx.font = '9px Exo 2'; ctx.textAlign = 'center';
+      ctx.beginPath();
+      ctx.roundRect(x, y, barWidth, Math.max(currentHeight, 0), [5, 5, 0, 0]);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(138,138,176,0.8)';
+      ctx.font = '9px Exo 2';
+      ctx.textAlign = 'center';
       ctx.fillText(m.label, x + barWidth / 2, pT + gH + 16);
-      if (m.spent > 0) { ctx.fillStyle = '#fff'; ctx.font = '7px Share Tech Mono'; ctx.fillText(`$${Math.round(m.spent)}`, x + barWidth / 2, y - 4); }
+      if (m.spent > 0) {
+        ctx.fillStyle = '#fff';
+        ctx.font = '7px Share Tech Mono';
+        ctx.fillText(`$${Math.round(m.spent)}`, x + barWidth / 2, y - 4);
+      }
       if (currentHeight < finalBarHeight) requestAnimationFrame(drawFrame);
     }
     drawFrame();
@@ -683,30 +758,41 @@ function renderRemainingBudgetRing() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const now = new Date();
-const spentThisMonth = state.expenses
-  .filter(exp => {
-    const [yr, mo] = exp.date.split('-').map(Number);
-    return (mo - 1) === now.getMonth() && yr === now.getFullYear();
-  })
+  const spentThisMonth = state.expenses
+    .filter(exp => {
+      const [yr, mo] = exp.date.split('-').map(Number);
+      return (mo - 1) === now.getMonth() && yr === now.getFullYear();
+    })
     .reduce((sum, exp) => sum + Number(exp.amount), 0);
 
-  const base = state.monthlyIncome > 0 ? state.monthlyIncome : Object.values(state.budgets).reduce((s, a) => s + a, 0);
+  const base = state.monthlyIncome > 0
+    ? state.monthlyIncome
+    : Object.values(state.budgets).reduce((s, a) => s + a, 0);
   const percentUsed = base > 0 ? (spentThisMonth / base) * 100 : 0;
   const rounded = Math.min(Math.round(percentUsed), 100);
   const el = document.getElementById('dashboard-budget-percent');
   if (el) el.innerText = rounded;
 
   const cx = canvas.width / 2, cy = canvas.height / 2, r = 60;
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 10; ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 10;
+  ctx.stroke();
 
   const endAngle = (percentUsed / 100) * Math.PI * 2 - Math.PI / 2;
-  ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, Math.min(endAngle, Math.PI * 1.5));
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, -Math.PI / 2, Math.min(endAngle, Math.PI * 1.5));
   let strokeColor = 'var(--secondary-cyan)';
   if (percentUsed >= 100) strokeColor = 'var(--accent-pink)';
   else if (percentUsed >= 85) strokeColor = '#eab308';
-  ctx.strokeStyle = strokeColor; ctx.lineWidth = 10; ctx.lineCap = 'round';
-  ctx.shadowBlur = 12; ctx.shadowColor = strokeColor; ctx.stroke(); ctx.shadowBlur = 0;
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = 10;
+  ctx.lineCap = 'round';
+  ctx.shadowBlur = 12;
+  ctx.shadowColor = strokeColor;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
 }
 
 // ==========================================
@@ -763,9 +849,11 @@ function openExpenseModal() {
   document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('expense-modal-overlay').classList.add('active-modal');
 }
+
 function closeExpenseModal() {
   document.getElementById('expense-modal-overlay').classList.remove('active-modal');
 }
+
 function closeExpenseModalOnOutsideClick(event) {
   if (event.target.id === 'expense-modal-overlay') closeExpenseModal();
 }
@@ -801,33 +889,21 @@ async function handleExpenseSubmit(event) {
 
     closeExpenseModal();
     showToast('Expense logged successfully!', 'success');
-
-    // ✅ Reload all data first
     await syncExpenses();
 
-    // ✅ Then refresh whichever view is currently active
-    if (state.subview === 'dashboard') {
-      updateDashboardCounters();
-      triggerChartRenders();
-      renderRecentTransactions();
-  } else if (state.subview === 'history') {
-  populateMonthFilter();
-  const now = new Date();
-  const currentMonthKey = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-  const filterMonthEl = document.getElementById('filter-month');
-  const activeMonth = filterMonthEl?.value || currentMonthKey;
-  renderMonthlySummaryCards(activeMonth);
-  renderHistoryTable();
-} else if (state.subview === 'budgets') {
+    if (state.subview === 'history') {
+      populateMonthFilter();
+      const filterMonthEl = document.getElementById('filter-month');
+      const activeMonth = filterMonthEl?.value || 'ALL';
+      renderMonthlySummaryCards(activeMonth === 'ALL' ? null : activeMonth);
+      renderHistoryTable();
+    } else if (state.subview === 'budgets') {
       renderBudgetsPanel();
     }
 
-    // ✅ Always keep dashboard data fresh in background too
-    if (state.subview !== 'dashboard') {
-      updateDashboardCounters();
-      triggerChartRenders();
-      renderRecentTransactions();
-    }
+    updateDashboardCounters();
+    triggerChartRenders();
+    renderRecentTransactions();
 
   } catch (err) {
     showToast('Failed to save expense: ' + err.message, 'error');
@@ -841,7 +917,10 @@ function animateDeleteExpense(id) {
   if (row) {
     row.style.transition = 'all 0.4s ease';
     row.style.transform = 'perspective(1000px) translateZ(-300px) rotateX(45deg)';
-    row.style.opacity = '0'; row.style.height = '0'; row.style.padding = '0'; row.style.overflow = 'hidden';
+    row.style.opacity = '0';
+    row.style.height = '0';
+    row.style.padding = '0';
+    row.style.overflow = 'hidden';
     setTimeout(() => deleteExpense(id), 400);
   } else {
     deleteExpense(id);
@@ -861,17 +940,15 @@ async function deleteExpense(id) {
     }
 
     showToast('Expense deleted.', 'info');
-
-    // ✅ Reload data then refresh all active views
     await syncExpenses();
 
-if (state.subview === 'history') {
-  populateMonthFilter();
-  const filterMonthEl = document.getElementById('filter-month');
-  const activeMonth = filterMonthEl?.value || 'ALL';
-  renderMonthlySummaryCards(activeMonth);
-  renderHistoryTable();
-}
+    if (state.subview === 'history') {
+      populateMonthFilter();
+      const filterMonthEl = document.getElementById('filter-month');
+      const activeMonth = filterMonthEl?.value || 'ALL';
+      renderMonthlySummaryCards(activeMonth === 'ALL' ? null : activeMonth);
+      renderHistoryTable();
+    }
 
     updateDashboardCounters();
     triggerChartRenders();
@@ -889,12 +966,15 @@ function openIncomeModal() {
   document.getElementById('income-modal-amount').value = state.monthlyIncome > 0 ? state.monthlyIncome : '';
   document.getElementById('income-modal-overlay').classList.add('active-modal');
 }
+
 function closeIncomeModal() {
   document.getElementById('income-modal-overlay').classList.remove('active-modal');
 }
+
 function closeIncomeModalOnOutsideClick(event) {
   if (event.target.id === 'income-modal-overlay') closeIncomeModal();
 }
+
 function handleIncomeSubmit(event) {
   event.preventDefault();
   const amount = Number(document.getElementById('income-modal-amount').value);
@@ -914,9 +994,9 @@ function populateMonthFilter() {
   if (!monthSel) return;
   monthSel.innerHTML = '<option value="ALL">All Months</option>';
   const dates = [...new Set(state.expenses.map(e => {
-  const [yr, mo] = e.date.split('-').map(Number);
-  return `${yr}-${mo.toString().padStart(2, '0')}`;
-}))].sort().reverse();
+    const [yr, mo] = e.date.split('-').map(Number);
+    return `${yr}-${mo.toString().padStart(2, '0')}`;
+  }))].sort().reverse();
   dates.forEach(dStr => {
     const [yr, mo] = dStr.split('-');
     const label = new Date(yr, mo - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -925,8 +1005,12 @@ function populateMonthFilter() {
 }
 
 function sortTableBy(key) {
-  if (state.historySort.key === key) state.historySort.dir = state.historySort.dir === 'asc' ? 'desc' : 'asc';
-  else { state.historySort.key = key; state.historySort.dir = 'desc'; }
+  if (state.historySort.key === key) {
+    state.historySort.dir = state.historySort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.historySort.key = key;
+    state.historySort.dir = 'desc';
+  }
   document.querySelectorAll('.history-table th').forEach(th => th.classList.remove('sort-asc', 'sort-desc'));
   ['date', 'note', 'category', 'amount'].forEach(k => {
     const icon = document.getElementById(`sort-icon-${k}`);
@@ -950,12 +1034,12 @@ function renderHistoryTable() {
   const filterMo = document.getElementById('filter-month')?.value || 'ALL';
 
   let filtered = state.expenses.filter(tx => {
-  const [yr, mo] = tx.date.split('-').map(Number);
-  const yyyymm = `${yr}-${mo.toString().padStart(2, '0')}`;
-  return (tx.note.toLowerCase().includes(query) || tx.category.toLowerCase().includes(query)) &&
-    (filterCat === 'ALL' || tx.category === filterCat) &&
-    (filterMo === 'ALL' || yyyymm === filterMo);
-});
+    const [yr, mo] = tx.date.split('-').map(Number);
+    const yyyymm = `${yr}-${mo.toString().padStart(2, '0')}`;
+    return (tx.note.toLowerCase().includes(query) || tx.category.toLowerCase().includes(query)) &&
+      (filterCat === 'ALL' || tx.category === filterCat) &&
+      (filterMo === 'ALL' || yyyymm === filterMo);
+  });
 
   const sk = state.historySort.key, sd = state.historySort.dir === 'asc' ? 1 : -1;
   filtered.sort((a, b) => {
@@ -964,7 +1048,10 @@ function renderHistoryTable() {
     return String(a[sk]).localeCompare(String(b[sk])) * sd;
   });
 
-  if (filtered.length === 0) { if (emptyMsg) emptyMsg.style.display = 'block'; return; }
+  if (filtered.length === 0) {
+    if (emptyMsg) emptyMsg.style.display = 'block';
+    return;
+  }
   if (emptyMsg) emptyMsg.style.display = 'none';
 
   filtered.forEach(tx => {
@@ -974,7 +1061,7 @@ function renderHistoryTable() {
         <td class="mono">${new Date(tx.date + 'T00:00:00').toLocaleDateString()}</td>
         <td style="font-weight:600;">${escapeHtml(tx.note)}</td>
         <td><span class="table-category-badge" style="background:rgba(${hexToRgb(cat.color)},0.1);border:1px solid rgba(${hexToRgb(cat.color)},0.25);color:${cat.color};">${cat.emoji} ${tx.category}</span></td>
-        <td style="text-align:right;font-weight:bold;" class="mono" style="color:var(--accent-pink);">-$${Number(tx.amount).toFixed(2)}</td>
+        <td style="text-align:right;font-weight:bold;" class="mono">-$${Number(tx.amount).toFixed(2)}</td>
         <td style="text-align:center;">
           <button class="table-action-btn delete" onclick="animateDeleteExpense('${tx.id}')" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
         </td>
@@ -998,10 +1085,11 @@ function renderBudgetsPanel() {
     totalLimit += limit;
     const spent = state.expenses
       .filter(e => e.category === catName)
-.filter(e => {
-  const [yr, mo] = e.date.split('-').map(Number);
-  return (mo - 1) === now.getMonth() && yr === now.getFullYear();
-})      .reduce((sum, e) => sum + Number(e.amount), 0);
+      .filter(e => {
+        const [yr, mo] = e.date.split('-').map(Number);
+        return (mo - 1) === now.getMonth() && yr === now.getFullYear();
+      })
+      .reduce((sum, e) => sum + Number(e.amount), 0);
     const percent = limit > 0 ? Math.round((spent / limit) * 100) : 0;
     let statusTag = '<span class="budget-status-tag ok">Stable</span>';
     if (spent > limit && limit > 0) statusTag = '<span class="budget-status-tag over">Breached</span>';
@@ -1025,6 +1113,7 @@ function renderBudgetsPanel() {
         <div class="budget-summary-stats"><span style="color:var(--text-muted);">Status:</span>${statusTag}</div>
       </div>`);
   });
+
   const el = document.getElementById('budget-sum-allocated');
   if (el) el.innerText = `$${totalLimit.toFixed(2)}`;
 }
@@ -1035,9 +1124,11 @@ function openBudgetEditModal(categoryName, currentLimit) {
   document.getElementById('budget-modal-amount').value = currentLimit;
   document.getElementById('budget-modal-overlay').classList.add('active-modal');
 }
+
 function closeBudgetModal() {
   document.getElementById('budget-modal-overlay').classList.remove('active-modal');
 }
+
 function closeBudgetModalOnOutsideClick(event) {
   if (event.target.id === 'budget-modal-overlay') closeBudgetModal();
 }
@@ -1050,11 +1141,8 @@ async function handleBudgetSubmit(event) {
 
   try {
     if (state.storageMode === 'cloud' && state.supabaseClient) {
-
-      // ✅ Get real UUID from session
       const { data: sessionData } = await state.supabaseClient.auth.getSession();
       const realUserId = sessionData?.session?.user?.id;
-
       if (!realUserId) throw new Error('No active session. Please log out and log back in.');
 
       const { data, error: fetchErr } = await state.supabaseClient
@@ -1129,9 +1217,12 @@ async function handleSaveDbSettings(event) {
     localStorage.setItem('spendorbit_supabase_url', url);
     localStorage.setItem('spendorbit_supabase_key', key);
     localStorage.setItem('spendorbit_storage_mode', 'cloud');
-    state.supabaseUrl = url; state.supabaseAnonKey = key;
-    state.supabaseClient = client; state.storageMode = 'cloud';
-    updateDbIndicatorUI(); renderCloudSettings();
+    state.supabaseUrl = url;
+    state.supabaseAnonKey = key;
+    state.supabaseClient = client;
+    state.storageMode = 'cloud';
+    updateDbIndicatorUI();
+    renderCloudSettings();
     showToast('Supabase cloud database connected!', 'success');
   } catch (err) {
     feedback.innerText = 'Connection failed: ' + err.message;
@@ -1143,9 +1234,12 @@ function disconnectCloudDb() {
   localStorage.removeItem('spendorbit_supabase_url');
   localStorage.removeItem('spendorbit_supabase_key');
   localStorage.setItem('spendorbit_storage_mode', 'local');
-  state.supabaseUrl = ''; state.supabaseAnonKey = '';
-  state.supabaseClient = null; state.storageMode = 'local';
-  updateDbIndicatorUI(); renderCloudSettings();
+  state.supabaseUrl = '';
+  state.supabaseAnonKey = '';
+  state.supabaseClient = null;
+  state.storageMode = 'local';
+  updateDbIndicatorUI();
+  renderCloudSettings();
   showToast('Switched to Local Offline storage.', 'info');
 }
 
@@ -1163,9 +1257,11 @@ function copySqlSchema() {
 function toggleProfileDropdown() {
   document.getElementById('profile-dropdown').classList.toggle('open');
 }
+
 function closeProfileDropdown() {
   document.getElementById('profile-dropdown')?.classList.remove('open');
 }
+
 document.addEventListener('click', function (e) {
   const wrapper = document.querySelector('.profile-dropdown-wrapper');
   if (wrapper && !wrapper.contains(e.target)) closeProfileDropdown();
@@ -1183,6 +1279,7 @@ function showToast(message, type = 'info') {
   container.appendChild(toast);
   setTimeout(() => toast.remove(), 3200);
 }
+
 // ==========================================
 // 17. MONTHLY SUMMARY CARDS
 // ==========================================
@@ -1191,19 +1288,15 @@ function renderMonthlySummaryCards(selectedMonth = null) {
   if (!container) return;
   container.innerHTML = '';
 
-  // Group expenses by YYYY-MM
   const monthMap = {};
   state.expenses.forEach(exp => {
-    // ✅ Parse date parts directly to avoid timezone shift
-const [year, month, day] = exp.date.split('-').map(Number);
-const d = new Date(year, month - 1, day);
-    const key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+    const [year, month] = exp.date.split('-').map(Number);
+    const key = `${year}-${month.toString().padStart(2, '0')}`;
     if (!monthMap[key]) monthMap[key] = { total: 0, count: 0 };
     monthMap[key].total += Number(exp.amount);
     monthMap[key].count += 1;
   });
 
-  // Sort months newest first
   const sortedMonths = Object.keys(monthMap).sort().reverse();
 
   if (sortedMonths.length === 0) {
@@ -1211,7 +1304,6 @@ const d = new Date(year, month - 1, day);
     return;
   }
 
-  // Find max total for bar scaling
   const maxTotal = Math.max(...sortedMonths.map(k => monthMap[k].total));
 
   sortedMonths.forEach(key => {
@@ -1239,25 +1331,11 @@ function onMonthCardClick(monthKey) {
   const filterMonthEl = document.getElementById('filter-month');
   const currentVal = filterMonthEl?.value;
 
-  // If clicking same active card, do nothing (stay on that month)
+  // Clicking the already active month does nothing
   if (currentVal === monthKey) return;
 
-  // Switch to clicked month
   if (filterMonthEl) filterMonthEl.value = monthKey;
   renderMonthlySummaryCards(monthKey);
   renderHistoryTable();
-  document.querySelector('.filter-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-  // Set the month filter dropdown to match
-  if (filterMonthEl) filterMonthEl.value = monthKey;
-
-  // Re-render cards with active highlight
-  renderMonthlySummaryCards(monthKey);
-
-  // Re-render table filtered to this month
-  renderHistoryTable();
-
-  // Scroll to table smoothly
   document.querySelector('.filter-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
